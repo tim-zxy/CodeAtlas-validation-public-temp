@@ -103,6 +103,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node ./control/public-validation.mjs publish-stage ./source '${{ runner.temp }}\public-validation' READ_FULL162
+      - name: Check failure worker cleanup without credentials
+        if: failure()
+        id: failure_guard
+        shell: pwsh
+        run: node ./control/public-validation.mjs check-failure-cleanup ./source '${{ runner.temp }}\public-validation'
+      - name: Preserve reviewed partial failure reports
+        if: failure() && steps.failure_guard.outputs.safe_to_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs preserve-failure ./source '${{ runner.temp }}\public-validation' READ_FULL162
   verify:
     needs: [seed, read_full]
     timeout-minutes: 360
@@ -153,6 +164,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node ./control/public-validation.mjs publish-stage ./source '${{ runner.temp }}\public-validation' VERIFY90
+      - name: Check failure worker cleanup without credentials
+        if: failure()
+        id: failure_guard
+        shell: pwsh
+        run: node ./control/public-validation.mjs check-failure-cleanup ./source '${{ runner.temp }}\public-validation'
+      - name: Preserve reviewed partial failure reports
+        if: failure() && steps.failure_guard.outputs.safe_to_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs preserve-failure ./source '${{ runner.temp }}\public-validation' VERIFY90
   transport:
     needs: [seed, verify]
     timeout-minutes: 360
@@ -203,3 +225,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node ./control/public-validation.mjs publish-stage ./source '${{ runner.temp }}\public-validation' TRANSPORT154
+      - name: Check failure worker cleanup without credentials
+        if: failure()
+        id: failure_guard
+        shell: pwsh
+        run: node ./control/public-validation.mjs check-failure-cleanup ./source '${{ runner.temp }}\public-validation'
+      - name: Preserve reviewed partial failure reports
+        if: failure() && steps.failure_guard.outputs.safe_to_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs preserve-failure ./source '${{ runner.temp }}\public-validation' TRANSPORT154
