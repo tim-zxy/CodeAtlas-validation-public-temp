@@ -138,7 +138,7 @@ export function payloadEntries(inventory, native, holdout, licenses = []) {
     cleanRelative(x.path);
     assert(!seen.has(x.path.toLowerCase()));
     seen.add(x.path.toLowerCase());
-    assert(Number.isSafeInteger(x.bytes) && x.bytes > 0);
+    assert(Number.isSafeInteger(x.bytes) && x.bytes >= 0);
     assert(/^[a-f0-9]{64}$/.test(x.sha256));
   }
   return out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));

@@ -2,6 +2,29 @@ import test from "node:test";
 import assert from "node:assert/strict";
 const api = await import("./public-pack.mjs").catch(() => ({}));
 const hash = "a".repeat(64);
+test("original empty stderr evidence remains an exact zero-byte package member", () => {
+  const empty = {
+    path: "transport/corpus/artifacts/case/trial-0.stderr",
+    bytes: 0,
+    sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  };
+  const out = api.payloadEntries(
+    [empty],
+    { bytes: 4, sha256: hash },
+    { bytes: 2, sha256: hash },
+  );
+  assert.deepEqual(
+    out.find((x) => x.bytes === 0),
+    { ...empty, path: "evidence/corpus/artifacts/case/trial-0.stderr" },
+  );
+  assert.throws(() =>
+    api.payloadEntries(
+      [{ ...empty, bytes: -1 }],
+      { bytes: 4, sha256: hash },
+      { bytes: 2, sha256: hash },
+    ),
+  );
+});
 test("redistributed Native retains the original reviewed license bytes", () => {
   const license = {
     path: "evidence/licenses/owned/LICENSE",
