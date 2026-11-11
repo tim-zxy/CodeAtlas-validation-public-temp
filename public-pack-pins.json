@@ -1,0 +1,93 @@
+{
+  "sourceCommit": "79da40105d480cce540ac636334dd9b6d3f54956",
+  "readerRoot": "D:\\a\\CodeAtlas-validation-public-temp\\CodeAtlas-validation-public-temp\\source",
+  "logicalRoot": "C:\\CodeAtlas-P05-D5-R10",
+  "inputPins": {
+    "READ_FULL162-evidence.zip:stage/paired/candidate.json": {
+      "bytes": 11656,
+      "sha256": "42b20519182c816794778c3b76da29e085e908aa8059b38bacec0b8a3b8c1304"
+    },
+    "READ_FULL162-evidence.zip:stage/paired/read.json": {
+      "bytes": 146005,
+      "sha256": "42c18a4b892a50dd5f2ed3811382bee9162c1b40494ae2eefac7f62bab35df27"
+    },
+    "READ_FULL162-evidence.zip:stage/paired/full.json": {
+      "bytes": 230941,
+      "sha256": "0c4ad0e3d413bd691541f471b8506cee6970bb7a4db864757508c90c370c72bd"
+    },
+    "READ_FULL162-evidence.zip:stage/paired-holdout/observations.json": {
+      "bytes": 82107,
+      "sha256": "3e8a5ac9f660979f88d483f9befbda44dc8280916b022a8d0cc3a1759c1507ae"
+    },
+    "VERIFY90-evidence.zip:stage/verify/candidate.json": {
+      "bytes": 4156,
+      "sha256": "c318a3516967dd164394f746c02c517fe15efbc48c984b5e8df5475baa7a9487"
+    },
+    "VERIFY90-evidence.zip:stage/verify/raw.json": {
+      "bytes": 173146,
+      "sha256": "4d6860ebdf0695acef19c8b288320714990b422f642c10d8e6e1246137ec0c69"
+    },
+    "VERIFY90-evidence.zip:stage/verify-holdout/holdout.json": {
+      "bytes": 35169,
+      "sha256": "1f7467fe2b392189855dcc1033c2153f436c5cf0fb3f07e3c4d0be88426a8cb8"
+    },
+    "TRANSPORT154-evidence.zip:transport/candidate.json": {
+      "bytes": 5585,
+      "sha256": "d88650f7126cf531fcd6eaf820c8e87a103c950d2f9fcd7a79ca914c2001f5df"
+    },
+    "TRANSPORT154-evidence.zip:transport/raw.json": {
+      "bytes": 251773,
+      "sha256": "4f08af4e01b8e770195e3164db2b75be97b23debc276be17d615f77a71075d59"
+    },
+    "TRANSPORT154-evidence.zip:transport/qualification.json": {
+      "bytes": 874,
+      "sha256": "d80c377cca42dab1146134c9af4b34a444d0bbbba220a64372659fd542942459"
+    },
+    "TRANSPORT154-evidence.zip:transport/evidence-manifest.json": {
+      "bytes": 686,
+      "sha256": "5fe90804dcccf8c7e8034620be19c495d8a005a9854743f18a0883b819c56760"
+    },
+    "TRANSPORT154-evidence.zip:transport/native-build.json": {
+      "bytes": 10914,
+      "sha256": "3b283cb77e72de308b0bc7b589e02cb33a921928536ccc406d3d5af6fdc06600"
+    },
+    "TRANSPORT154-evidence.zip:transport/corpus/artifacts/manifest.json": {
+      "bytes": 2134546,
+      "sha256": "1f26d4dcfe1f4a983d2b2ce6328e5c76dedb21a690ba37b1741bb6a56866e0df"
+    },
+    "TRANSPORT154-evidence.zip:transport/corpus/local-binding.json": {
+      "bytes": 42219,
+      "sha256": "49af0749824b874faa0b9728e8d311c0a6298a73926d5178da7dbf7412128175"
+    },
+    "TRANSPORT154-evidence.zip:stage/transport-holdout/holdout.json": {
+      "bytes": 50893,
+      "sha256": "4a8cdceb64a5f820401c09ce046d19d4ea808021713ff7b49d56da9eb340ad15"
+    }
+  },
+  "assets": [
+    {
+      "id": 734131227,
+      "name": "public-build-seed.zip",
+      "bytes": 3048217,
+      "sha256": "f57823bda68430dad50e3a2604d9f2c45f56db32ce287efef31c7345d24a154c"
+    },
+    {
+      "id": 734195380,
+      "name": "READ_FULL162-evidence.zip",
+      "bytes": 288931,
+      "sha256": "e6e602e26be378a3f30e3b61aa992fcb567eee9632b94ac835c4f36aa8aaa1a3"
+    },
+    {
+      "id": 734205342,
+      "name": "VERIFY90-evidence.zip",
+      "bytes": 177632,
+      "sha256": "e30eaf5d34b09da91505a39a049f37a2bcfd27cfa3f08b79ee2a6e1c9b784aaa"
+    },
+    {
+      "id": 734855309,
+      "name": "TRANSPORT154-evidence.zip",
+      "bytes": 243866297,
+      "sha256": "5be93101572f8057a523c9bbc92e4b2dffd36f05ac491a7b9bbf10458e2828c4"
+    }
+  ]
+}
