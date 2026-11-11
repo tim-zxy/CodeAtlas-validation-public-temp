@@ -1,0 +1,25 @@
+name: Bounded pack clock and receipt unit tests
+on:
+  push:
+    branches: ['clock-unit-*']
+  workflow_dispatch: null
+permissions:
+  contents: read
+jobs:
+  unit:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false
+    runs-on: windows-2025
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Record the actual clock with the same script
+        shell: pwsh
+        run: ./public-pack-clock.ps1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - name: Builtin-only owned unit fixtures, no Native or PACK
+        shell: pwsh
+        run: node --test public-pack-clock.test.mjs public-pack-budget.test.mjs public-pack-result.test.mjs public-pack.test.mjs

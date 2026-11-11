@@ -19,6 +19,7 @@ import { reviewTimeoutMs } from "./public-pack-review.mjs";
 import { createProgress, runProgressChild } from "./public-pack-progress.mjs";
 import { snapshotTree, snapshotFile, assertProtectedEqual, assertReviewTransition } from "./public-pack-invariants.mjs";
 import { budget, assertPackCanStart, assertInspectionCanStart } from "./public-pack-budget.mjs";
+import {readJobElapsedClock,clockName} from "./public-pack-clock.mjs";
 import { readPackManifest, packFailureLines } from "./public-pack-result.mjs";
 const pins = JSON.parse(
   readFileSync(new URL("./public-pack-pins.json", import.meta.url), "utf8"),
@@ -517,7 +518,7 @@ async function main() {
     assert.deepEqual(copied.data.environment,checked.data.transport.environment);
     assert.deepEqual(copied.data.profiles,profiles);
     assertProtectedEqual(afterBoundary,await reviewBoundary(source,protectedRoots,generic));
-    assertPackCanStart(performance.now()-commandStarted);
+    assertPackCanStart(elapsedBudget());
     await fs.mkdir(path.join(work, "output"));
     stage("ONCE_ORIGINAL_PACK");
     await save(path.join(work, "pack-attempt.json"), {
@@ -558,7 +559,7 @@ async function main() {
     assert.deepEqual(result.archive.entries, expected);
     assert(result.archive.bytes < 512 * 1024 * 1024);
     assert.equal(await hfile(zip), result.archive.sha256);
-    assertInspectionCanStart(performance.now()-commandStarted);
+    assertInspectionCanStart(elapsedBudget());
     const inspection = path.join(work, "inspection");
     stage("DECODE_AND_VERIFY");
     await fs.mkdir(inspection);

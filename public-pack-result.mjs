@@ -7,7 +7,7 @@ export async function readPackManifest(zip) {
   assert.equal(path.resolve(file),file);assert.equal(await fs.realpath(file),file);
   const before=await fs.lstat(file,{bigint:true});
   assert(before.isFile()&&!before.isSymbolicLink());assert.equal(before.nlink,1n);
-  assert(before.size>0n&&before.size<=8000000n);
+  assert(before.size>0n&&before.size<=BigInt(maximumBytes));
   const handle=await fs.open(file,"r");let bytes;
   try {
     assert.deepEqual(fields(await handle.stat({bigint:true})),fields(before));
@@ -18,7 +18,10 @@ export async function readPackManifest(zip) {
     assert.deepEqual(fields(await fs.lstat(file,{bigint:true})),fields(before));
     assert.equal(await fs.realpath(file),file);
   } finally {await handle.close();}
-  const result=JSON.parse(bytes.toString("utf8"));
+  return JSON.parse(bytes.toString("utf8"));
+}
+export async function readPackManifest(zip) {
+  const result=await readOwnedJson(zip+".manifest.json");
   assert.deepEqual(Object.keys(result).sort(),["archive","candidateSha256","holdoutSha256"]);
   assert.deepEqual(Object.keys(result.archive).sort(),["bytes","entries","sha256"]);
   assert(Number.isSafeInteger(result.archive.bytes)&&result.archive.bytes>0);

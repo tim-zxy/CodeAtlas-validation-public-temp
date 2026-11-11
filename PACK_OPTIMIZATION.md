@@ -53,3 +53,10 @@ Next safe action is review/approval of the new-attempt execution scope and opera
 ## Original result protocol
 
 The original supported runRefreshCi pack API writes outputArchive.manifest.json exclusively and returns the result; the CLI main does not print JSON. A separate wrapper invokes this exact API once and preserves the same full Create/manifest behavior. The parent waits for successful exit, reads the original sidecar under bounded single-link/open/fstat checks, verifies original candidate/holdout pins and all existing archive/decode gates. It never treats empty stdout as a missing original PACK result. Failure output is restricted to fixed error kind and public source gate/line, with no raw message or stack. Historical GUARD_FAILED alone cannot distinguish a child error from the old stdout parse bug and never proves zero Create calls.
+
+
+## Actual wall-clock envelope
+
+The original50min per-command planning envelope assumed10min of bootstrap regardless of actual bootstrap duration. On runner1000000612 original review passed but took19min; the whole preparation completed at~26min and was refused before latch/PACK although the65min job had enough time. That run called PACK zero times; previous unknown Create outcomes remain unknown.
+
+The same65min job maximum,20min PACK limit,8min inspection plus2min cleanup start reserve remain. A60min usable wall envelope is now anchored by an exclusive clock written immediately after control checkout. It charges actual bootstrap and preparation time, then advances using the main process monotonic clock. This credits unused bootstrap headroom without extending the job ceiling. Wrong-job/attempt/control, absent, expired or future clocks refuse with no fallback. All checks remain mandatory. A dedicated5min builtin-only unit workflow is limited to clock-unit-* branches (and manual dispatch), read permission, no Native/PACK/artifacts. Formal PACK remains manual; local environment unavailability is not routed around via a PACK push trigger.

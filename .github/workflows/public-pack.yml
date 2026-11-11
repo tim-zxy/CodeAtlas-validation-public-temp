@@ -21,6 +21,10 @@ jobs:
           ref: ${{ github.sha }}
           path: control
           persist-credentials: false
+      - name: Start context-bound job wall clock
+        timeout-minutes: 1
+        shell: pwsh
+        run: ./control/public-pack-clock.ps1
       - name: Read frozen public source
         timeout-minutes: 2
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
