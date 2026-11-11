@@ -5,7 +5,7 @@ export const reviewTimeoutMs = 20 * 60 * 1000;
 export const reviewStages = Object.freeze([
   "NATIVE_BUILD", "ORIGINAL_TRANSPORT_CORPUS", "ORIGINAL_TRANSPORT_CANDIDATE",
   "ORIGINAL_TRANSPORT_HOLDOUT", "ORIGINAL_TRANSPORT_PREFIX",
-  "ORIGINAL_PAIRED162", "ORIGINAL_VERIFY90", "COMPLETE",
+  "ORIGINAL_PAIRED162", "ORIGINAL_VERIFY90", "COPIED_CATALOG", "COPIED_BINDING", "COMPLETE",
 ]);
 export function assertPairedHoldoutGroup(candidate, workspace, row) {
   assert(["READ_SEAL", "FULL_TRANSPORT"].includes(workspace));

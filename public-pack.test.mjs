@@ -149,3 +149,13 @@ test("async readonly wrapper preserves fixed arguments, budget, empty tokens and
   const failure=Object.assign(new Error("fixed"),{code:"ETIMEDOUT"});
   await assert.rejects(api.readRole("unused", "unused",async()=>{throw failure;}), e=>e===failure);
 });
+
+test("copied role is explicit, fresh-child scoped and bounded without a full review fallback",async()=>{
+ const r=await api.readRole("owned-source","owned-work",async(_exe,args,options)=>{
+  assert.equal(args[3],"catalog-binding");assert.equal(options.timeoutMs,300000);
+  assert.equal(options.env.GH_TOKEN,"");assert.equal(options.env.GITHUB_TOKEN,"");
+  return Buffer.from('{"state":"COPIED_CATALOG_AND_BINDING_VERIFIED"}');
+ },"catalog-binding");
+ assert.equal(r.state,"COPIED_CATALOG_AND_BINDING_VERIFIED");
+ await assert.rejects(api.readRole("unused","unused",async()=>Buffer.from('{}'),"unknown"));
+});

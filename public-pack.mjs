@@ -17,6 +17,8 @@ import {
 import { retainedSeed } from "./retained-seed.mjs";
 import { reviewTimeoutMs } from "./public-pack-review.mjs";
 import { createProgress, runProgressChild } from "./public-pack-progress.mjs";
+import { snapshotTree, snapshotFile, assertProtectedEqual, assertReviewTransition } from "./public-pack-invariants.mjs";
+import { budget, assertPackCanStart, assertInspectionCanStart } from "./public-pack-budget.mjs";
 const pins = JSON.parse(
   readFileSync(new URL("./public-pack-pins.json", import.meta.url), "utf8"),
 );
@@ -292,13 +294,27 @@ async function noProcesses(source) {
     { windowsHide: true, timeout: 15000, maxBuffer: 10000 },
   );
 }
-export async function readRole(source, work, execute = runProgressChild) {
+export async function readRole(source, work, execute = runProgressChild, role = "original") {
+  assert(["original", "catalog-binding"].includes(role));
   const bytes = await execute(process.execPath,
-    [path.join(import.meta.dirname, "public-pack-reader.mjs"), source, work], {
+    [path.join(import.meta.dirname, "public-pack-reader.mjs"), source, work, role], {
       env: { ...process.env, GH_TOKEN: "", GITHUB_TOKEN: "" },
-      timeoutMs: reviewTimeoutMs, maxBuffer: 4_000_000,
+      timeoutMs: role === "original" ? reviewTimeoutMs : budget.copiedReviewMs, maxBuffer: 4_000_000,
     });
   return JSON.parse(bytes);
+}
+async function reviewBoundary(source, roots, generic) {
+  const protectedInputs=[];
+  for(const root of roots)protectedInputs.push(await snapshotTree(root,{hashFile:generic.hashFile}));
+  return {
+    protected:protectedInputs,
+    reader:await snapshotTree(source,{hashFile:generic.hashFile,allowLinks:true,allowHardlinks:true}),
+    controller:await snapshotTree(import.meta.dirname,{hashFile:generic.hashFile,allowLinks:true,allowHardlinks:true}),
+    context:{pid:process.pid,timeOrigin:performance.timeOrigin,execPath:process.execPath,
+      node:await snapshotFile(process.execPath,generic.hashFile),versions:{...process.versions},
+      sourceCommit,controlCommit:process.env.GITHUB_SHA,
+      nodeOptions:process.env.NODE_OPTIONS??null,nodePath:process.env.NODE_PATH??null},
+  };
 }
 export async function prepareReview(source, work) {
     stage("EXTRACT_FIXED_INPUTS");
@@ -380,12 +396,19 @@ export async function prepareReview(source, work) {
     }
     await checkMembers(logical, expected);
     await save(path.join(work, "payload-expected.json"), expected);
+    const generic = await imp(source, ".github/qualification/r11-staged-pack.mjs");
+    const protectedRoots=[logical,seed.root,paired.root,verification.root];
     stage("READER_INVENTORY_BEFORE");
-    const before = await inventory(source, "", true);
+    const boundary=await reviewBoundary(source,protectedRoots,generic);
+    const before=boundary.reader;
     stage("ORIGINAL_READER_REVIEW");
     const checked = await readRole(source, work);
     assert.equal(checked.state, "ORIGINAL_REVIEW_CONSISTENT");
-    return { checked, seed, expected, before, logical };
+    assert.deepEqual(checked.audit,{subprocess:0,mutation:0,network:0});
+    stage("REVIEW_IDENTITY_RECHECK");
+    assertProtectedEqual(boundary,await reviewBoundary(source,protectedRoots,generic));
+    progress.finish();
+    return { checked, seed, expected, before, logical, generic, boundary, protectedRoots };
 }
 export function assertFixedContext(source, work) {
   assert.equal(process.env.GITHUB_ACTIONS, "true");
@@ -403,6 +426,7 @@ export function assertFixedContext(source, work) {
   );
 }
 async function main() {
+  const commandStarted=performance.now();
   const [mode, sourceArg, workArg] = process.argv.slice(2);
   assert(["fetch", "pack", "publish"].includes(mode));
   const source = path.resolve(sourceArg), work = path.resolve(workArg);
@@ -450,11 +474,7 @@ async function main() {
     return;
   }
   if (mode === "pack") {
-    const { checked, seed, expected, before, logical } = await prepareReview(source, work);
-    const generic = await imp(
-      source,
-      ".github/qualification/r11-staged-pack.mjs",
-    );
+    const { checked, seed, expected, before, logical, generic, boundary, protectedRoots } = await prepareReview(source, work);
     const profiles = makePublicProfiles(checked.data);
     stage("ADOPT_APPROVED_PROFILE_COPY");
     await save(path.join(work, "proposed-adopted-profiles.json"), profiles);
@@ -462,29 +482,26 @@ async function main() {
       source,
       "packages/runtime/src/native-metadata-profiles.ts",
     );
-    await fs.writeFile(
-      profileSource,
-      generic.insertProfileEntries(
-        await fs.readFile(profileSource, "utf8"),
-        profiles,
-      ),
-    );
+    const profileText=generic.insertProfileEntries(await fs.readFile(profileSource,"utf8"),profiles);
+    const expectedProfileHashes={"packages/runtime/src/native-metadata-profiles.ts":sha(Buffer.from(profileText))};
+    await fs.writeFile(profileSource,profileText);
     stage("CATALOG_EMIT");
     const emitted = await generic.emitCatalog(
       source,
       path.join(work, "catalog-build"),
     );
     for (const [name, text] of emitted)
-      if (name !== "native-metadata-profiles.d.ts")
-        await fs.writeFile(
-          path.join(source, "packages/runtime/dist", name),
-          text,
-        );
+      if (name !== "native-metadata-profiles.d.ts") {
+        const relative="packages/runtime/dist/"+name;
+        expectedProfileHashes[relative]=sha(Buffer.from(text));
+        await fs.writeFile(path.join(source,relative),text);
+      }
     stage("READER_INVENTORY_AFTER");
-    const after = await inventory(source, "", true);
+    const afterBoundary=await reviewBoundary(source,protectedRoots,generic);
+    const after=afterBoundary.reader;
     stage("READER_DELTA_VERIFY");
     generic.assertReaderDelta(before.files, after.files);
-    assert.deepEqual(after.links, before.links);
+    assertReviewTransition(boundary,afterBoundary,expectedProfileHashes);
     stage("RECHECK_SEED");
     await verifySeed(
       source,
@@ -493,7 +510,13 @@ async function main() {
       retainedSeed.producerCommit,
     );
     stage("RECHECK_READER");
-    assert.deepEqual(await readRole(source, work), checked);
+    const copied=await readRole(source,work,undefined,"catalog-binding");
+    assert.equal(copied.state,"COPIED_CATALOG_AND_BINDING_VERIFIED");
+    assert.deepEqual(copied.audit,{subprocess:0,mutation:0,network:0});
+    assert.deepEqual(copied.data.environment,checked.data.transport.environment);
+    assert.deepEqual(copied.data.profiles,profiles);
+    assertProtectedEqual(afterBoundary,await reviewBoundary(source,protectedRoots,generic));
+    assertPackCanStart(performance.now()-commandStarted);
     await fs.mkdir(path.join(work, "output"));
     stage("ONCE_ORIGINAL_PACK");
     await save(path.join(work, "pack-attempt.json"), {
@@ -517,7 +540,7 @@ async function main() {
         windowsHide: true,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
-        timeout: 300000,
+        timeout: budget.packMs,
         maxBuffer: 8_000_000,
       },
     );
@@ -525,6 +548,7 @@ async function main() {
     assert.deepEqual(result.archive.entries, expected);
     assert(result.archive.bytes < 512 * 1024 * 1024);
     assert.equal(await hfile(zip), result.archive.sha256);
+    assertInspectionCanStart(performance.now()-commandStarted);
     const inspection = path.join(work, "inspection");
     stage("DECODE_AND_VERIFY");
     await fs.mkdir(inspection);
@@ -543,8 +567,8 @@ async function main() {
       retainedSeed.producerCommit,
     );
     stage("FINAL_READER_VERIFY");
-    const final = await inventory(source, "", true);
-    assert.deepEqual(final, after);
+    const finalBoundary=await reviewBoundary(source,protectedRoots,generic);
+    assertProtectedEqual(finalBoundary,afterBoundary);
     await save(path.join(work, "pack-ready.json"), {
       state: "PACKED_DECODED_VERIFIED_NOT_QUALIFIED",
       sourceCommit,

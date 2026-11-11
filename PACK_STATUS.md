@@ -14,3 +14,12 @@ Run 43007747317 stopped before profile adoption and PACK Create: the new read-on
 The next control revision preserves every original validator and adds bounded fixed-stage diagnostics, captured stderr with allowlisted output, and a 20 minute read-only operational timeout within the existing 45 minute job limit. FULL holdout binding now uses the original whole-corpus digest; READ continues to use its row payload digest, matching original candidate grouping. This static wrapper defect is not proven to have caused the prior timeout.
 
 Eight focused tests pass, including real lightweight child stderr suppression and invalid identity cases. All original 27 paired holdout identity groups match the corrected selector. No real qualification or PACK is executed by these tests. A newly approved recovery must use another fresh hosted runner and exclusive roots; failure stops without automatic retry. No actual22, production installation or CI reference switch is included.
+
+
+## Independent optimized attempt
+
+The canceled run43026387962 remains UNKNOWN for candidate adoption, PACK invocation and application cleanup. It is not resumed. A new standard hosted Windows job uses a fresh exclusive reader/work/C layout and a new control/run identity, retaining old evidence/assets. The original product source and all qualification gates remain frozen.
+
+The first complete semantic review remains. The second supplemental full semantic repetition is replaced by the original contract's copied-catalog/profile/binding role plus immediate byte/physical-instance/topology checks. Actual emitted profiles and four admission boundaries are checked in a fresh module graph. Original PACK still performs all its original checks and an exclusive latch.
+
+Operational limits: workflow65min, original review20min, copied review5min, PACK child20min. Before output/latch creation require30min in the controller's50min planning envelope; inspection requires10min. Failure, drift or UNKNOWN stops with no automatic retry. No hard whole-process-tree isolation or cleanup guarantee is claimed. Actual22, production install and product CI switch remain outside this operation. The reviewed control artifacts match27 unique focused tests; new copied-role integration is not claimed passed before execution.

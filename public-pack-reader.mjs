@@ -7,7 +7,9 @@ import { createRequire, syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
 import { assertPairedHoldoutGroup } from "./public-pack-review.mjs";
 import { createProgress } from "./public-pack-progress.mjs";
-const [source, work] = process.argv.slice(2);
+import { assertCopiedProfiles, verifyCopiedCatalog } from "./public-pack-invariants.mjs";
+const [source, work, role = "original"] = process.argv.slice(2);
+assert(["original", "catalog-binding"].includes(role));
 assert(!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN);
 const require = createRequire(import.meta.url),
   audit = { subprocess: 0, mutation: 0, network: 0 };
@@ -79,6 +81,24 @@ try {
     ctx,
   );
   const identity = values[0].identity;
+  let data,state;
+  if(role === "catalog-binding") {
+    stage("COPIED_CATALOG");
+    const runtime=await imp("packages/runtime/dist/native-metadata-admission.js");
+    const actualProfiles=await imp("packages/runtime/dist/native-metadata-profiles.js");
+    const profiles=json(path.join(work,"proposed-adopted-profiles.json"));
+    assertCopiedProfiles(actualProfiles,profiles,runtime);
+    const environment=runtime.nativeMetadataEnvironment();
+    assert.deepEqual(environment,json(path.join(root,"candidate.json")).environment);
+    stage("COPIED_BINDING");
+    const manifest=json(path.join(root,"corpus/artifacts/manifest.json"));
+    const binding=json(path.join(root,"corpus/local-binding.json"));
+    const catalog=await verifyCopiedCatalog(replay,ctx,manifest,binding);
+    assert.equal(values.length,22);
+    assert.deepEqual(identity.environment,environment);
+    data={profiles,environment,dependencyEntries:catalog.dependencies.length,topologyDigest:catalog.topology.digest};
+    state="COPIED_CATALOG_AND_BINDING_VERIFIED";
+  } else {
   stage("ORIGINAL_TRANSPORT_CANDIDATE");
   const memory = await imp("scripts/native-refresh-transport-memory.mjs");
   const transport = json(path.join(root, "candidate.json"));
@@ -189,24 +209,12 @@ try {
     verifyApi.validateVerificationObservation(r, vi);
     assert(r.peakResidentBytes <= verification.reservationBytes);
   }
-  assert.deepEqual(audit, { subprocess: 0, mutation: 0, network: 0 });
+  data={paired,verification,transport,fullPeak:Math.max(...json(path.join(pairedRoot,"full.json")).observations.map(r=>r.peakResidentBytes))};
+  state="ORIGINAL_REVIEW_CONSISTENT";
+  }
+  assert.deepEqual(audit,{subprocess:0,mutation:0,network:0});
   stage("COMPLETE"); progress.finish();
-  console.log(
-    JSON.stringify({
-      state: "ORIGINAL_REVIEW_CONSISTENT",
-      data: {
-        paired,
-        verification,
-        transport,
-        fullPeak: Math.max(
-          ...json(path.join(pairedRoot, "full.json")).observations.map(
-            (r) => r.peakResidentBytes,
-          ),
-        ),
-      },
-      audit,
-    }),
-  );
+  console.log(JSON.stringify({state,data,audit}));
 } catch (e) {
   console.error(
     "READONLY_PACK_REVIEW_FAILED:" + phase + ":" + (e.code ?? e.name),
