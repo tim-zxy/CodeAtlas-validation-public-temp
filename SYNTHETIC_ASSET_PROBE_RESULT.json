@@ -1,0 +1,16 @@
+{
+  "scope": "SYNTHETIC_TRANSFER_ONLY_NOT_QUALIFICATION",
+  "repository": "tim-zxy/CodeAtlas-validation-public-temp",
+  "releaseId": 441152422,
+  "assetId": 733755569,
+  "tag": "probe-public-transfer-8b58af875176",
+  "targetCommit": "45f557872067977c61ae9aca98c5b78669eeb1ef",
+  "bytes": 140,
+  "sha256": "8b58af875176ccac30384c521953ebb375401eeb70c128825b9ffbd60bbec53f",
+  "serverDigest": "sha256:8b58af875176ccac30384c521953ebb375401eeb70c128825b9ffbd60bbec53f",
+  "unchangedDownload": true,
+  "immutable": false,
+  "automaticExpiry": false,
+  "reviewAfterDays": 7,
+  "deletedAnything": false
+}
