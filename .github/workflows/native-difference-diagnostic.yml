@@ -1,0 +1,39 @@
+name: Public-safe Native difference diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: public-safe-native-diagnostic
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Read exact validation controls
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read already-public exact CodeAtlas source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - name: Select exact Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - name: Verify read-only inspector on synthetic PE data
+        shell: pwsh
+        run: node --test ./control/native-pe-diagnostic.test.mjs
+      - name: Compile twice and inspect PE differences only
+        shell: pwsh
+        run: |
+          & ./control/native-diagnostic-build.ps1 -SourceRoot '${{ github.workspace }}\source' -OutputRoot '${{ runner.temp }}\native-difference-diagnostic'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
