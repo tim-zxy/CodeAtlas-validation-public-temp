@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import path from 'node:path';import os from 'node:os';import {copyLicenseTexts} from './public-seed.mjs';
+test('supplies only exact pinned upstream notice for crate that omitted it',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'public-notice-'));const dir=path.join(root,'crate');await fs.mkdir(dir);await fs.writeFile(path.join(dir,'Cargo.toml'),'');await fs.writeFile(path.join(dir,'.cargo_vcs_info.json'),JSON.stringify({git:{sha1:'94703d5a6bed02b98e438d7cad1136c01a60ba2c'}}));const p={name:'tree-sitter-java',version:'0.23.5',license:'MIT',source:'registry+public',manifest_path:path.join(dir,'Cargo.toml'),license_file:null};
+ const dest=path.join(root,'notices');await copyLicenseTexts([p],dest);assert.match(await fs.readFile(path.join(dest,'tree-sitter-java-0.23.5/LICENSE'),'utf8'),/Copyright \(c\) 2017 Ayman Nadeem/);
+ await assert.rejects(copyLicenseTexts([{...p,version:'0.23.6'}],path.join(root,'wrong-version')));
+ await fs.writeFile(path.join(dir,'.cargo_vcs_info.json'),JSON.stringify({git:{sha1:'0'.repeat(40)}}));await assert.rejects(copyLicenseTexts([p],path.join(root,'wrong-origin')));
+});

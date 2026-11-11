@@ -60,6 +60,10 @@ try {
   if ($ReaderOnly) { VerifyLocks; return }
   Run 'node' @((Join-Path $PSScriptRoot 'native-layout-bridge.mjs'),'before',$SourceRoot,$OutputRoot)
   Run $cargo @('fetch','--locked')
+  $metadata = & $cargo metadata --locked --offline --format-version 1
+  if ($LASTEXITCODE -ne 0) { throw 'CARGO_METADATA_FAILED' }
+  [IO.File]::WriteAllText((Join-Path $OutputRoot 'cargo-metadata.json'), ($metadata -join "`n"), [Text.UTF8Encoding]::new($false))
+  Run 'node' @((Join-Path $PSScriptRoot 'public-seed.mjs'),'licenses',$SourceRoot,$OutputRoot)
   $env:CARGO_NET_OFFLINE = 'true'
   $env:CARGO_TARGET_DIR = Join-Path $SourceRoot 'target'
   $actualBuildArgs = @('build','--workspace')
@@ -71,7 +75,5 @@ try {
   VerifyLocks
   if (git status --porcelain --untracked-files=no) { throw 'TRACKED_SOURCE_CHANGED' }
   Run 'node' @((Join-Path $PSScriptRoot 'native-layout-bridge.mjs'),'after',$SourceRoot,$OutputRoot)
-  $metadata = & $cargo metadata --locked --offline --format-version 1
-  if ($LASTEXITCODE -ne 0) { throw 'CARGO_METADATA_FAILED' }
-  [IO.File]::WriteAllText((Join-Path $OutputRoot 'cargo-metadata.json'), ($metadata -join "`n"), [Text.UTF8Encoding]::new($false))
+
 } finally { Pop-Location }

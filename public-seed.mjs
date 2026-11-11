@@ -38,9 +38,21 @@ export async function originalZip(source,mode,file,entries,root){
  const args=['-NoProfile','-NonInteractive','-File',path.join(source,'scripts/native-refresh-ci-pack.ps1'),'-Mode',mode,'-ArchivePath',file,...(root?['-RootPath',root]:[])];
  const child=execFileSync('pwsh.exe',args,{input:JSON.stringify(record),encoding:'utf8',windowsHide:true,maxBuffer:1_000_000,timeout:mode==='Create'?180000:300000});const result=JSON.parse(child);assert.equal(result.verified,true);assert.equal(result.entries,entries.length);assert.equal(result.mode,mode);
 }
+export async function copyLicenseTexts(packages,destination){
+ await fs.mkdir(destination);const licenses=[];
+ for(const pkg of packages){if(pkg.source===null)continue;assert(pkg.license,'DEPENDENCY_LICENSE_UNKNOWN');const dir=path.dirname(pkg.manifest_path);const folder=pkg.name+'-'+pkg.version;assert(/^[a-zA-Z0-9._-]+$/.test(folder));const dest=path.join(destination,folder);await fs.mkdir(dest);
+ const names=(await fs.readdir(dir)).filter(n=>/^(LICENSE|LICENCE|COPYING|NOTICE)([._-].*)?$/i.test(n));if(pkg.license_file){assert.equal(path.basename(pkg.license_file),pkg.license_file,'Nonroot license requires review');if(!names.includes(pkg.license_file))names.push(pkg.license_file);}
+ let provenance=null;
+ if(names.length===0&&pkg.name==='tree-sitter-java'&&pkg.version==='0.23.5'&&pkg.license==='MIT'){
+  const vcs=await json(path.join(dir,'.cargo_vcs_info.json'));assert.equal(vcs.git.sha1,'94703d5a6bed02b98e438d7cad1136c01a60ba2c','LICENSE_SOURCE_MISMATCH');const bytes=await fs.readFile(path.join(import.meta.dirname,'third-party-notices/tree-sitter-java-0.23.5-LICENSE'));assert.equal(sha(bytes),'52ed137b039cd9c46409bc22e89938af911c95b157feae2d040b51e6084369a7');assertPublicBytes(bytes);await fs.writeFile(path.join(dest,'LICENSE'),bytes,{flag:'wx'});names.push('LICENSE');provenance={upstream:'https://github.com/tree-sitter/tree-sitter-java/blob/94703d5a6bed02b98e438d7cad1136c01a60ba2c/LICENSE',gitBlobSha:'4e0446f76ca7d380d615e31b5500711df66a9ea2',sha256:sha(bytes)};
+ }else{assert(names.length>0,'DEPENDENCY_LICENSE_TEXT_MISSING');for(const name of names){assert(/^[a-zA-Z0-9._-]+$/.test(name));const info=await fs.lstat(path.join(dir,name));assert(info.isFile()&&!info.isSymbolicLink());const bytes=await fs.readFile(path.join(dir,name));assertPublicBytes(bytes);await fs.writeFile(path.join(dest,name),bytes,{flag:'wx'});}}
+ licenses.push({name:pkg.name,version:pkg.version,license:pkg.license,files:names.sort(),...(provenance?{provenance}:{})});
+ }
+ await save(path.join(destination,'index.json'),licenses);
+}
 export async function createSeed(source,output){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,repository);
- const seed=path.join(output,'seed');await fs.mkdir(seed);await fs.mkdir(path.join(seed,'native'));await fs.mkdir(path.join(seed,'evidence'));await fs.mkdir(path.join(seed,'temp'));await fs.mkdir(path.join(seed,'evidence/licenses'));
+ const seed=path.join(output,'seed');await fs.mkdir(seed);await fs.mkdir(path.join(seed,'native'));await fs.mkdir(path.join(seed,'evidence'));await fs.mkdir(path.join(seed,'temp'));
  const provenance=await json(path.join(output,'build-receipt.json'));assert.equal(provenance.sourceCommit,sourceCommit);
  const nativeSource='C:/CodeAtlas-P05-D5-R10/native/codeatlas-native-analyzer.exe';const native=await regular(nativeSource);assertPublicBytes(native);
  await fs.copyFile(nativeSource,path.join(seed,'native/codeatlas-native-analyzer.exe'),1);
@@ -49,11 +61,7 @@ export async function createSeed(source,output){
  const replay=await imp(source,'packages/runtime/test/helpers/native-refresh-transport-replay.mjs');
  const catalog=await replay.discoverRefreshReplayDependenciesAt({repositoryPath:source,nativeExecutablePath:path.join(seed,'native/codeatlas-native-analyzer.exe'),generatorRevision:'p05-refresh-replay-v4'});
  await save(path.join(seed,'evidence/reader-catalog.json'),{dependencies:catalog.dependencies,topology:catalog.topology});
- const metadata=await json(path.join(output,'cargo-metadata.json'));const licenses=[];
- for(const pkg of metadata.packages){if(pkg.source===null)continue;assert(pkg.license,'DEPENDENCY_LICENSE_UNKNOWN');const dir=path.dirname(pkg.manifest_path);const folder=pkg.name+'-'+pkg.version;assert(/^[a-zA-Z0-9._-]+$/.test(folder));const dest=path.join(seed,'evidence/licenses',folder);await fs.mkdir(dest);
- const names=(await fs.readdir(dir)).filter(n=>/^(LICENSE|LICENCE|COPYING|NOTICE)([._-].*)?$/i.test(n));if(pkg.license_file){assert.equal(path.basename(pkg.license_file),pkg.license_file,'Nonroot license requires review');if(!names.includes(pkg.license_file))names.push(pkg.license_file);}assert(names.length>0,'DEPENDENCY_LICENSE_TEXT_MISSING');
- for(const name of names){assert(/^[a-zA-Z0-9._-]+$/.test(name));const b=await fs.readFile(path.join(dir,name));assertPublicBytes(b);await fs.writeFile(path.join(dest,name),b,{flag:'wx'});}licenses.push({name:pkg.name,version:pkg.version,license:pkg.license,files:names.sort()});}
- await save(path.join(seed,'evidence/licenses/index.json'),licenses);
+ await fs.cp(path.join(output,'license-review'),path.join(seed,'evidence/licenses'),{recursive:true,errorOnExist:true,force:false});
  const inventory=await members(seed);assertSeedInventory(inventory);
  const manifest={schemaVersion:1,scope:'BUILD_SEED_NOT_QUALIFIED',repository,sourceCommit,controlCommit:process.env.GITHUB_SHA,nativeSha256:sha(native),environment:build.environment,inventory};assert(/^[a-f0-9]{40}$/.test(manifest.controlCommit));
  const bytes=Buffer.from(JSON.stringify(manifest,null,2)+'\n');assertPublicBytes(bytes);await fs.writeFile(path.join(seed,'seed.json'),bytes,{flag:'wx'});
@@ -69,5 +77,5 @@ export async function verifySeed(source,seed,expectedManifestSha){
  const pack=await imp(source,'scripts/helpers/native-refresh-ci-pack.mjs');const layouts=await imp(source,'scripts/helpers/native-refresh-ci-layout.mjs');await pack.verifyRefreshCiNativeBuildAt(await layouts.readRefreshCiPackLayoutAt(seed),source);return manifest;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===path.resolve(import.meta.filename)){
- try{const [mode,source,output]=process.argv.slice(2);assert.equal(mode,'create');await createSeed(source,output);}catch{console.error('PUBLIC_SEED_STOPPED_NOT_PUBLISHED');process.exitCode=1;}
+ try{const [mode,source,output]=process.argv.slice(2);if(mode==='licenses'){const metadata=await json(path.join(output,'cargo-metadata.json'));await copyLicenseTexts(metadata.packages,path.join(output,'license-review'));console.log('DEPENDENCY_NOTICE_REVIEW_COMPLETE');}else{assert.equal(mode,'create');await createSeed(source,output);}}catch{console.error('PUBLIC_SEED_STOPPED_NOT_PUBLISHED');process.exitCode=1;}
 }
