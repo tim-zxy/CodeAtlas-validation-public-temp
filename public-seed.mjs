@@ -12,7 +12,7 @@ export function assertPublicBytes(bytes){
  const patterns=[/[a-z]:[\\/]Users[\\/]/i,/\/home\/[^/\s]+\//i,/(?:github_pat_|gh[pousr]_)[A-Za-z0-9_]{15,}/,/-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/];
  for(const encoding of ['utf8','utf16le','latin1'])for(const re of patterns)assert(!re.test(bytes.toString(encoding)),'PUBLIC_CONTENT_REVIEW_FAILED');
 }
-export function assertReaderEqual(expected,actual){assert.deepEqual(actual.dependencies,expected.dependencies,'Reader bytes changed');assert.deepEqual(actual.topology,expected.topology,'Reader topology changed');}
+export function assertReaderEqual(expected,actual){assert.deepEqual(actual.dependencies,expected.dependencies,'READER_BYTES_CHANGED');assert.deepEqual(actual.topology,expected.topology,'READER_TOPOLOGY_CHANGED');}
 export function assertSeedInventory(rows){
  assert(Array.isArray(rows)&&rows.length>0);const seen=new Set();
  for(const x of rows){assert.deepEqual(Object.keys(x).sort(),['bytes','path','sha256']);assert(typeof x.path==='string'&&/^(native\/codeatlas-native-analyzer\.exe|evidence\/(?:native-build\.json|reader-catalog\.json|build-provenance\.json|licenses\/[A-Za-z0-9._/-]+))$/.test(x.path));assert(!x.path.split('/').some(y=>!y||y==='.'||y==='..'));assert(!seen.has(x.path.toLowerCase()));seen.add(x.path.toLowerCase());assert(x.path.split('/').every(y=>!y.endsWith('.')&&!/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\.|$)/i.test(y)));assert(Number.isSafeInteger(x.bytes)&&x.bytes>0);assert(/^[a-f0-9]{64}$/.test(x.sha256));}
@@ -27,11 +27,19 @@ async function members(root,relative=''){
  assert(!e.isSymbolicLink());if(e.isDirectory())rows.push(...await members(root,rel));else{const b=await regular(path.join(root,rel));assertPublicBytes(b);rows.push({path:rel,bytes:b.length,sha256:sha(b)});}}
  return rows;
 }
+export function compilerToolPaths(provenance,vsRoot,programFiles86){
+ assert(/^(?:[0-9]+\.){2,3}[0-9]+$/.test(provenance.vcToolsVersion),'INVALID_VC_VERSION');assert(/^(?:[0-9]+\.){2,3}[0-9]+$/.test(provenance.sdkVersion),'INVALID_SDK_VERSION');assert(path.win32.isAbsolute(vsRoot)&&path.win32.isAbsolute(programFiles86),'INVALID_TOOL_INSTALL_ROOT');const bin=path.win32.join(vsRoot,'VC/Tools/MSVC',provenance.vcToolsVersion,'bin/Hostx64/x64');return {cl:path.win32.join(bin,'cl.exe'),linker:path.win32.join(bin,'link.exe'),rc:path.win32.join(programFiles86,'Windows Kits/10/bin',provenance.sdkVersion,'x64/rc.exe')};
+}
 async function tools(provenance){
- const {spawnSync}=await import('node:child_process');
- for(const x of provenance.tools){assert(/^[a-f0-9]{64}$/.test(x.sha256));const exe={node:'node.exe',powershell:'pwsh.exe',tar:'tar.exe',cargo:'cargo.exe',rustc:'rustc.exe',cl:'cl.exe',linker:'link.exe',rc:'rc.exe'}[x.role];assert(exe);
- const found=spawnSync(['cargo','rustc'].includes(x.role)?'rustup':'where.exe',['cargo','rustc'].includes(x.role)?['which','--toolchain','1.98.1',x.role]:[exe],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(found.status,0,'Tool not found');const candidates=found.stdout.trim().split(/\r?\n/);assert(candidates.length>0);assert.equal(sha(await fs.readFile(x.role==='tar'?path.join(process.env.SystemRoot,'System32/tar.exe'):candidates[0])),x.sha256,'Tool bytes changed: '+x.role);}
- assert.equal(process.env.ImageVersion,provenance.imageVersion,'Runner image changed');
+ const {spawnSync}=await import('node:child_process');let compilerFiles;
+ for(const x of provenance.tools){assert(/^[a-f0-9]{64}$/.test(x.sha256));let file;
+ if(['cl','linker','rc'].includes(x.role)){
+  if(!compilerFiles){const programFiles86=process.env['ProgramFiles(x86)'];const vswhere=path.join(programFiles86,'Microsoft Visual Studio/Installer/vswhere.exe');const r=spawnSync(vswhere,['-latest','-products','*','-requires','Microsoft.VisualStudio.Component.VC.Tools.x86.x64','-property','installationPath'],{encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:10000});assert.equal(r.status,0,'VS_TOOL_RESOLUTION_FAILED');assert.equal(r.stdout.trim().split(/\r?\n/).length,1,'VS_TOOL_RESOLUTION_AMBIGUOUS');compilerFiles=compilerToolPaths(provenance,r.stdout.trim(),programFiles86);}file=compilerFiles[x.role];
+ }else if(x.role==='tar')file=path.join(process.env.SystemRoot,'System32/tar.exe');else{
+ const exe={node:'node.exe',powershell:'pwsh.exe',cargo:'cargo.exe',rustc:'rustc.exe'}[x.role];assert(exe,'UNKNOWN_TOOL_ROLE');const found=spawnSync(['cargo','rustc'].includes(x.role)?'rustup':'where.exe',['cargo','rustc'].includes(x.role)?['which','--toolchain','1.98.1',x.role]:[exe],{encoding:'utf8',windowsHide:true,timeout:10000});assert.equal(found.status,0,'TOOL_NOT_FOUND_'+x.role.toUpperCase());file=found.stdout.trim().split(/\r?\n/)[0];}
+ assert.equal(sha(await fs.readFile(file)),x.sha256,'TOOL_BYTES_CHANGED_'+x.role.toUpperCase());
+ }
+ assert.equal(process.env.ImageVersion,provenance.imageVersion,'RUNNER_IMAGE_CHANGED');
 }
 export async function originalZip(source,mode,file,entries,root){
  const record={entries};if(mode!=='Create'){record.bytes=(await fs.stat(file)).size;const h=createHash('sha256');const {createReadStream}=await import('node:fs');for await(const chunk of createReadStream(file))h.update(chunk);record.sha256=h.digest('hex');}
@@ -69,8 +77,8 @@ export async function createSeed(source,output){
  const zip=path.join(output,'public-build-seed.zip');await originalZip(source,'Create',zip,[...inventory,{path:'seed.json',bytes:bytes.length,sha256:sha(bytes)}],seed);
  const zipBytes=await fs.readFile(zip);assert(zipBytes.length<128*1024*1024);const result={scope:manifest.scope,sourceCommit,controlCommit:manifest.controlCommit,nativeSha256:manifest.nativeSha256,seedManifestSha256:sha(bytes),archiveSha256:sha(zipBytes),archiveBytes:zipBytes.length,entries:inventory.length+1,sampling:'NOT_ATTEMPTED',privacy:'ALLOWLIST_AND_UTF8_UTF16_MARKER_REVIEW_NO_GENERAL_CLEARANCE'};await save(path.join(output,'public-seed-result.json'),result);console.log(JSON.stringify(result));return result;
 }
-export async function verifySeed(source,seed,expectedManifestSha){
- assert(/^[a-f0-9]{64}$/.test(expectedManifestSha));const bytes=await regular(path.join(seed,'seed.json'));assert.equal(sha(bytes),expectedManifestSha);assertPublicBytes(bytes);const manifest=JSON.parse(bytes);assert.equal(manifest.scope,'BUILD_SEED_NOT_QUALIFIED');assert.equal(manifest.repository,repository);assert.equal(manifest.sourceCommit,sourceCommit);assert.equal(manifest.controlCommit,process.env.GITHUB_SHA);assertSeedInventory(manifest.inventory);assert.deepEqual(await members(seed),manifest.inventory);
+export async function verifySeed(source,seed,expectedManifestSha,producerCommit=process.env.GITHUB_SHA){
+ assert(/^[a-f0-9]{64}$/.test(expectedManifestSha));const bytes=await regular(path.join(seed,'seed.json'));assert.equal(sha(bytes),expectedManifestSha);assertPublicBytes(bytes);const manifest=JSON.parse(bytes);assert.equal(manifest.scope,'BUILD_SEED_NOT_QUALIFIED');assert.equal(manifest.repository,repository);assert.equal(manifest.sourceCommit,sourceCommit);assert.equal(manifest.controlCommit,producerCommit,'SEED_PRODUCER_CHANGED');assertSeedInventory(manifest.inventory);assert.deepEqual(await members(seed),manifest.inventory);
  const provenance=await json(path.join(seed,'evidence/build-provenance.json'));await tools(provenance);
  const runtime=await imp(source,'packages/runtime/dist/native-metadata-admission.js');assert.deepEqual(runtime.nativeMetadataEnvironment(),manifest.environment);
  const replay=await imp(source,'packages/runtime/test/helpers/native-refresh-transport-replay.mjs');const actual=await replay.discoverRefreshReplayDependenciesAt({repositoryPath:source,nativeExecutablePath:path.join(seed,'native/codeatlas-native-analyzer.exe'),generatorRevision:'p05-refresh-replay-v4'});assertReaderEqual(await json(path.join(seed,'evidence/reader-catalog.json')),actual);

@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import path from 'node:path';import {compilerToolPaths} from './public-seed.mjs';
+test('resolves exact installed compiler files without a previous shell PATH',()=>{
+ const p=compilerToolPaths({vcToolsVersion:'14.51.36231',sdkVersion:'10.0.26100.0'},'C:\\VS','C:\\Program Files (x86)');assert.equal(p.cl,path.win32.join('C:\\VS','VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/cl.exe'));assert.equal(p.linker,path.win32.join('C:\\VS','VC/Tools/MSVC/14.51.36231/bin/Hostx64/x64/link.exe'));assert.equal(p.rc,path.win32.join('C:\\Program Files (x86)','Windows Kits/10/bin/10.0.26100.0/x64/rc.exe'));assert.throws(()=>compilerToolPaths({vcToolsVersion:'../escape',sdkVersion:'10.0.26100.0'},'C:\\VS','C:\\PF'));
+});

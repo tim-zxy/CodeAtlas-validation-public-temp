@@ -1,0 +1,185 @@
+name: Verify exact retained public candidate
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: public-synthetic-formal-qualification
+  cancel-in-progress: false
+jobs:
+  read_full:
+    timeout-minutes: 360
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    steps:
+      - name: Read fixed workflow controls
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read exact public source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Prepare exact reader without Native rebuild
+        shell: pwsh
+        run: |
+          & ./control/public-build.ps1 -SourceRoot '${{ github.workspace }}\source' -OutputRoot '${{ runner.temp }}\public-validation' -ReaderOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch exact real release asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs fetch-seed ./source '${{ runner.temp }}\public-validation'
+      - name: Check identity then complete READ_FULL162
+        shell: pwsh
+        run: node ./control/public-validation.mjs sample ./source '${{ runner.temp }}\public-validation' READ_FULL162
+      - name: Save reviewed complete evidence
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs publish-stage ./source '${{ runner.temp }}\public-validation' READ_FULL162
+      - name: Check failure worker cleanup without credentials
+        if: failure()
+        id: failure_guard
+        shell: pwsh
+        run: node ./control/public-validation.mjs check-failure-cleanup ./source '${{ runner.temp }}\public-validation'
+      - name: Preserve reviewed partial failure reports
+        if: failure() && steps.failure_guard.outputs.safe_to_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs preserve-failure ./source '${{ runner.temp }}\public-validation' READ_FULL162
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false
+  verify:
+    needs:
+      - read_full
+    timeout-minutes: 360
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    steps:
+      - name: Read fixed workflow controls
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read exact public source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Prepare exact reader without Native rebuild
+        shell: pwsh
+        run: |
+          & ./control/public-build.ps1 -SourceRoot '${{ github.workspace }}\source' -OutputRoot '${{ runner.temp }}\public-validation' -ReaderOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch exact real release asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs fetch-seed ./source '${{ runner.temp }}\public-validation'
+      - name: Check identity then complete VERIFY90
+        shell: pwsh
+        run: node ./control/public-validation.mjs sample ./source '${{ runner.temp }}\public-validation' VERIFY90
+      - name: Save reviewed complete evidence
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs publish-stage ./source '${{ runner.temp }}\public-validation' VERIFY90
+      - name: Check failure worker cleanup without credentials
+        if: failure()
+        id: failure_guard
+        shell: pwsh
+        run: node ./control/public-validation.mjs check-failure-cleanup ./source '${{ runner.temp }}\public-validation'
+      - name: Preserve reviewed partial failure reports
+        if: failure() && steps.failure_guard.outputs.safe_to_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs preserve-failure ./source '${{ runner.temp }}\public-validation' VERIFY90
+  transport:
+    needs:
+      - verify
+    timeout-minutes: 360
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    steps:
+      - name: Read fixed workflow controls
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read exact public source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Prepare exact reader without Native rebuild
+        shell: pwsh
+        run: |
+          & ./control/public-build.ps1 -SourceRoot '${{ github.workspace }}\source' -OutputRoot '${{ runner.temp }}\public-validation' -ReaderOnly
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Fetch exact real release asset
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs fetch-seed ./source '${{ runner.temp }}\public-validation'
+      - name: Check identity then complete TRANSPORT154
+        shell: pwsh
+        run: node ./control/public-validation.mjs sample ./source '${{ runner.temp }}\public-validation' TRANSPORT154
+      - name: Save reviewed complete evidence
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs publish-stage ./source '${{ runner.temp }}\public-validation' TRANSPORT154
+      - name: Check failure worker cleanup without credentials
+        if: failure()
+        id: failure_guard
+        shell: pwsh
+        run: node ./control/public-validation.mjs check-failure-cleanup ./source '${{ runner.temp }}\public-validation'
+      - name: Preserve reviewed partial failure reports
+        if: failure() && steps.failure_guard.outputs.safe_to_publish == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node ./control/public-validation.mjs preserve-failure ./source '${{ runner.temp }}\public-validation' TRANSPORT154
+env:
+  RETAINED_SEED: "true"
+  SEED_RELEASE_ID: "441241421"
+  SEED_ASSET_ID: "734131227"
+  SEED_ARCHIVE_SHA: f57823bda68430dad50e3a2604d9f2c45f56db32ce287efef31c7345d24a154c
+  SEED_MANIFEST_SHA: 6565a97ceb9add0e4554de2940091d7ac15454b8686e270c6797dd247bc2d94a
