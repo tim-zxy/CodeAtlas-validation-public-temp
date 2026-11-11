@@ -5,6 +5,7 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
+import { assertPairedHoldoutGroup, reviewStages } from "./public-pack-review.mjs";
 const [source, work] = process.argv.slice(2);
 assert(!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN);
 const require = createRequire(import.meta.url),
@@ -57,14 +58,20 @@ const json = (p) => JSON.parse(fs.readFileSync(p, "utf8")),
   imp = (p) => import(pathToFileURL(path.join(source, p)).href);
 const logical = "C:/CodeAtlas-P05-D5-R10";
 const root = path.join(logical, "evidence");
-let phase = "NATIVE_BUILD";
+let phase;
+const stage = (name) => {
+  assert(reviewStages.includes(name));
+  phase = name;
+  console.error("PACK_REVIEW_STAGE:" + name);
+};
+stage("NATIVE_BUILD");
 try {
   const layouts = await imp("scripts/helpers/native-refresh-ci-layout.mjs");
   const layout = await layouts.readRefreshCiPackLayoutAt(path.resolve(logical));
   const ctx = layouts.refreshCiFixtureContext(layout);
   const pack = await imp("scripts/helpers/native-refresh-ci-pack.mjs");
   await pack.verifyRefreshCiNativeBuildAt(layout, source);
-  phase = "ORIGINAL_TRANSPORT_CORPUS";
+  stage("ORIGINAL_TRANSPORT_CORPUS");
   const replay = await imp(
     "packages/runtime/test/helpers/native-refresh-transport-replay.mjs",
   );
@@ -74,6 +81,7 @@ try {
     ctx,
   );
   const identity = values[0].identity;
+  stage("ORIGINAL_TRANSPORT_CANDIDATE");
   const memory = await imp("scripts/native-refresh-transport-memory.mjs");
   const transport = json(path.join(root, "candidate.json"));
   assert.deepEqual(
@@ -85,6 +93,7 @@ try {
     ),
     transport,
   );
+  stage("ORIGINAL_TRANSPORT_HOLDOUT");
   const qual = json(path.join(root, "qualification.json"));
   assert.deepEqual(qual.failures, []);
   assert(qual.cases.every((c) => c.passed === true));
@@ -105,7 +114,7 @@ try {
     held.observations.map((c) => c.name).sort(),
     [...memory.refreshTransportCases].sort(),
   );
-  phase = "ORIGINAL_TRANSPORT_PREFIX";
+  stage("ORIGINAL_TRANSPORT_PREFIX");
   const prefix = await replay.createRefreshTransportPrefixAudit(
       root,
       identity,
@@ -124,7 +133,7 @@ try {
     assert.equal(row.repetition, 0);
     assert(row.peakResidentBytes <= transport.reservationBytes);
   }
-  phase = "ORIGINAL_PAIRED162";
+  stage("ORIGINAL_PAIRED162");
   const pairedRoot = path.join(work, "READ_FULL162-evidence/stage/paired");
   const paired = json(path.join(pairedRoot, "candidate.json"));
   const pairedApi = await imp("scripts/native-memory-profile.mjs");
@@ -152,16 +161,9 @@ try {
   for (const { workspace, observation: r } of pairedHold.observations) {
     pairedApi.validateNativeMemoryObservation(r, workspace, paired.environment);
     assert(r.peakResidentBytes <= paired.reservationBytes);
-    assert(
-      paired.groups.some(
-        (g) =>
-          g.workspace === workspace &&
-          g.caseName === r.name &&
-          g.inputIdentity === r.corpusPayloadDigest,
-      ),
-    );
+    assertPairedHoldoutGroup(paired, workspace, r);
   }
-  phase = "ORIGINAL_VERIFY90";
+  stage("ORIGINAL_VERIFY90");
   const verifyRoot = path.join(work, "VERIFY90-evidence/stage/verify");
   const verification = json(path.join(verifyRoot, "candidate.json"));
   const verifyApi = await imp("scripts/native-refresh-verification-memory.mjs");
@@ -190,6 +192,7 @@ try {
     assert(r.peakResidentBytes <= verification.reservationBytes);
   }
   assert.deepEqual(audit, { subprocess: 0, mutation: 0, network: 0 });
+  stage("COMPLETE");
   console.log(
     JSON.stringify({
       state: "ORIGINAL_REVIEW_CONSISTENT",

@@ -136,3 +136,34 @@ test("payload mapping preserves every original Transport byte and adds only Nati
       ),
     );
 });
+
+test("readonly wrapper captures stderr and retains only fixed failure stages", () => {
+  const failure = Object.assign(new Error("sensitive raw error"), {
+    code: "ETIMEDOUT", stderr: Buffer.from("private-path\nPACK_REVIEW_STAGE:ORIGINAL_TRANSPORT_CORPUS\n")
+  });
+  const lines = [], old = console.error;
+  console.error = line => lines.push(line);
+  try {
+    assert.throws(() => api.readRole("unused-source", "unused-work", (_exe, _args, options) => {
+      assert.deepEqual(options.stdio, ["ignore", "pipe", "pipe"]);
+      assert.equal(options.timeout, 1200000);
+      assert.equal(options.env.GH_TOKEN, "");
+      assert.equal(options.env.GITHUB_TOKEN, "");
+      throw failure;
+    }), error => error === failure);
+    assert.deepEqual(lines, ["PACK_REVIEW_STAGE:ORIGINAL_TRANSPORT_CORPUS"]);
+  } finally { console.error = old; }
+});
+
+test("real child failure cannot forward unfiltered stderr through readonly wrapper", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const moduleUrl = new URL("./public-pack.mjs", import.meta.url).href;
+  const script = `import { execFileSync } from 'node:child_process';
+    import { readRole } from ${JSON.stringify(moduleUrl)};
+    try { readRole('unused', 'unused', (_exe, _args, options) =>
+      execFileSync(process.execPath, ['-e', "console.error('PRIVATE_DIAGNOSTIC_SENTINEL'); console.error('PACK_REVIEW_STAGE:NATIVE_BUILD'); process.exit(1)"], options));
+    } catch {}`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8" });
+  assert.equal(result.status, 0);
+  assert.equal(result.stderr.trim(), "PACK_REVIEW_STAGE:NATIVE_BUILD");
+});

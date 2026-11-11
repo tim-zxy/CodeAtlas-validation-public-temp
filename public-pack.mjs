@@ -15,6 +15,7 @@ import {
   verifySeed,
 } from "./public-seed.mjs";
 import { retainedSeed } from "./retained-seed.mjs";
+import { reviewDiagnostics, reviewTimeoutMs } from "./public-pack-review.mjs";
 const pins = JSON.parse(
   readFileSync(new URL("./public-pack-pins.json", import.meta.url), "utf8"),
 );
@@ -284,17 +285,24 @@ async function noProcesses(source) {
     { windowsHide: true, timeout: 15000, maxBuffer: 10000 },
   );
 }
-function readRole(source, work) {
-  const r = execFileSync(
+export function readRole(source, work, execute = execFileSync) {
+  let r;
+  try {
+    r = execute(
     process.execPath,
     [path.join(import.meta.dirname, "public-pack-reader.mjs"), source, work],
     {
       env: { ...process.env, GH_TOKEN: "", GITHUB_TOKEN: "" },
       windowsHide: true,
-      timeout: 300000,
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: reviewTimeoutMs,
       maxBuffer: 4_000_000,
     },
-  );
+    );
+  } catch (error) {
+    for (const line of reviewDiagnostics(error.stderr)) console.error(line);
+    throw error;
+  }
   return JSON.parse(r);
 }
 async function main() {
