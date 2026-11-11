@@ -15,13 +15,16 @@ import {
   verifySeed,
 } from "./public-seed.mjs";
 import { retainedSeed } from "./retained-seed.mjs";
-import { reviewDiagnostics, reviewTimeoutMs } from "./public-pack-review.mjs";
+import { reviewTimeoutMs } from "./public-pack-review.mjs";
+import { createProgress, runProgressChild } from "./public-pack-progress.mjs";
 const pins = JSON.parse(
   readFileSync(new URL("./public-pack-pins.json", import.meta.url), "utf8"),
 );
 const api = "https://api.github.com/repos/" + repository;
 const target = "codeatlas-p05-d5-public-79da401.zip";
 let phase = "START";
+const progress = createProgress("PARENT");
+const stage = name => { phase = name; progress.enter(name); };
 const read = async (p) => JSON.parse(await fs.readFile(p, "utf8"));
 const save = (p, x) =>
   fs.writeFile(p, JSON.stringify(x, null, 2) + "\n", { flag: "wx" });
@@ -224,9 +227,11 @@ async function inventory(root, rel = "", allowLinks = false) {
   };
 }
 async function checkMembers(root, entries, privacy = true) {
+  progress.enter("MEMBER_HASH");
   const actual = await inventory(root);
   assert.deepEqual(actual.links, []);
   assert.deepEqual(actual.files, entries);
+  if (privacy) progress.enter("MEMBER_PRIVACY");
   if (privacy)
     for (const e of entries)
       assertPublicBytes(await regular(path.join(root, e.path)));
@@ -264,9 +269,11 @@ async function extract(source, work, asset, seed = false) {
     new Set(entries.map((x) => x.path.toLowerCase())).size,
     entries.length,
   );
+  progress.enter("ZIP_VALIDATE");
   await originalZip(source, "Validate", zip, entries);
   const dest = path.join(work, asset.name.replace(".zip", ""));
   await fs.mkdir(dest);
+  progress.enter("ZIP_EXTRACT");
   await originalZip(source, "Extract", zip, entries, dest);
   await checkMembers(dest, entries);
   if (seed) await fs.mkdir(path.join(dest, "temp"));
@@ -285,34 +292,105 @@ async function noProcesses(source) {
     { windowsHide: true, timeout: 15000, maxBuffer: 10000 },
   );
 }
-export function readRole(source, work, execute = execFileSync) {
-  let r;
-  try {
-    r = execute(
-    process.execPath,
-    [path.join(import.meta.dirname, "public-pack-reader.mjs"), source, work],
-    {
+export async function readRole(source, work, execute = runProgressChild) {
+  const bytes = await execute(process.execPath,
+    [path.join(import.meta.dirname, "public-pack-reader.mjs"), source, work], {
       env: { ...process.env, GH_TOKEN: "", GITHUB_TOKEN: "" },
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
-      timeout: reviewTimeoutMs,
-      maxBuffer: 4_000_000,
-    },
-    );
-  } catch (error) {
-    for (const line of reviewDiagnostics(error.stderr)) console.error(line);
-    throw error;
-  }
-  return JSON.parse(r);
+      timeoutMs: reviewTimeoutMs, maxBuffer: 4_000_000,
+    });
+  return JSON.parse(bytes);
 }
-async function main() {
+export async function prepareReview(source, work) {
+    stage("EXTRACT_FIXED_INPUTS");
+    assert(!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN);
+    assert.equal(
+      (await read(path.join(work, "fetched.json"))).controlCommit,
+      process.env.GITHUB_SHA,
+    );
+    await noProcesses(source);
+    const loaded = [];
+    for (const [i, a] of pins.assets.entries())
+      loaded.push(await extract(source, work, a, i === 0));
+    const [seed, paired, verification, transport] = loaded;
+    stage("SEED_VERIFY");
+    await verifySeed(
+      source,
+      seed.root,
+      retainedSeed.manifestSha256,
+      retainedSeed.producerCommit,
+    );
+    stage("INPUT_PIN_VERIFY");
+    for (const [key, p] of Object.entries(pins.inputPins)) {
+      const [name, member] = key.split(":");
+      const item = loaded[pins.assets.findIndex((a) => a.name === name)];
+      const file = path.join(item.root, member);
+      assert.equal(await hfile(file), p.sha256);
+      assert.equal((await fs.stat(file)).size, p.bytes);
+    }
+    stage("PRIOR_CLEANUP_VERIFY");
+    for (const x of loaded.slice(1)) {
+      const clean = await read(
+        path.join(x.root, "stage/cleanup-confirmed.json"),
+      );
+      assert.equal(clean.state, "SETTLED");
+      assert.deepEqual(clean.remainingProcesses, []);
+      assert.equal(
+        (await read(path.join(x.root, "stage/stage-result.json"))).status,
+        "CANDIDATES_REVIEW_REQUIRED",
+      );
+    }
+    assert.equal(
+      (await read(path.join(transport.root, "stage/cleanup-confirmed.json")))
+        .transportTempEmpty,
+      true,
+    );
+    // New exclusive layout only; original read-only ownership is created later.
+    const logical = pins.logicalRoot;
+    await fs.mkdir(logical);
+    await fs.mkdir(path.join(logical, "native"));
+    await fs.mkdir(path.join(logical, "evidence"));
+    await fs.mkdir(path.join(logical, "temp"));
+    const native = seed.record.inventory.find(
+      (e) => e.path === "native/codeatlas-native-analyzer.exe",
+    );
+    const hold = transport.record.inventory.find(
+      (e) => e.path === "stage/transport-holdout/holdout.json",
+    );
+    stage("MATERIALIZE_PAYLOAD");
+    const licenses = seed.record.inventory.filter((e) =>
+      e.path.startsWith("evidence/licenses/"),
+    );
+    assert(licenses.length > 0);
+    const expected = payloadEntries(
+      transport.record.inventory,
+      native,
+      hold,
+      licenses,
+    );
+    for (const e of expected) {
+      const dest = path.join(logical, e.path);
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      const from =
+        e.path.startsWith("native/") || e.path.startsWith("evidence/licenses/")
+          ? path.join(seed.root, e.path)
+          : e.path === "evidence/review/holdout.json"
+            ? path.join(transport.root, hold.path)
+            : path.join(transport.root, "transport", e.path.slice(9));
+      await fs.copyFile(from, dest, 1);
+    }
+    await checkMembers(logical, expected);
+    await save(path.join(work, "payload-expected.json"), expected);
+    stage("READER_INVENTORY_BEFORE");
+    const before = await inventory(source, "", true);
+    stage("ORIGINAL_READER_REVIEW");
+    const checked = await readRole(source, work);
+    assert.equal(checked.state, "ORIGINAL_REVIEW_CONSISTENT");
+    return { checked, seed, expected, before, logical };
+}
+export function assertFixedContext(source, work) {
   assert.equal(process.env.GITHUB_ACTIONS, "true");
   assert.equal(process.env.GITHUB_REPOSITORY, repository);
   assert.equal(process.env.GITHUB_RUN_ATTEMPT, "1");
-  const [mode, sourceArg, workArg] = process.argv.slice(2);
-  assert(["fetch", "pack", "publish"].includes(mode));
-  const source = path.resolve(sourceArg),
-    work = path.resolve(workArg);
   assert.equal(source, pins.readerRoot);
   assert.equal(work, path.join(path.dirname(source), "pack-work"));
   assert.equal(
@@ -323,8 +401,14 @@ async function main() {
     }).trim(),
     sourceCommit,
   );
+}
+async function main() {
+  const [mode, sourceArg, workArg] = process.argv.slice(2);
+  assert(["fetch", "pack", "publish"].includes(mode));
+  const source = path.resolve(sourceArg), work = path.resolve(workArg);
+  assertFixedContext(source, work);
   if (mode === "fetch") {
-    phase = "FETCH_FIXED_ASSETS";
+    stage("FETCH_FIXED_ASSETS");
     assert(process.env.GH_TOKEN);
     await release();
     const current = await assets();
@@ -361,96 +445,18 @@ async function main() {
       controlCommit: process.env.GITHUB_SHA,
       assets: pins.assets,
     });
+    stage("COMPLETE"); progress.finish();
     console.log("PACK_INPUT_ASSETS_FETCHED");
     return;
   }
   if (mode === "pack") {
-    phase = "EXTRACT_FIXED_INPUTS";
-    assert(!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN);
-    assert.equal(
-      (await read(path.join(work, "fetched.json"))).controlCommit,
-      process.env.GITHUB_SHA,
-    );
-    await noProcesses(source);
-    const loaded = [];
-    for (const [i, a] of pins.assets.entries())
-      loaded.push(await extract(source, work, a, i === 0));
-    const [seed, paired, verification, transport] = loaded;
-    await verifySeed(
-      source,
-      seed.root,
-      retainedSeed.manifestSha256,
-      retainedSeed.producerCommit,
-    );
-    for (const [key, p] of Object.entries(pins.inputPins)) {
-      const [name, member] = key.split(":");
-      const item = loaded[pins.assets.findIndex((a) => a.name === name)];
-      const file = path.join(item.root, member);
-      assert.equal(await hfile(file), p.sha256);
-      assert.equal((await fs.stat(file)).size, p.bytes);
-    }
-    for (const x of loaded.slice(1)) {
-      const clean = await read(
-        path.join(x.root, "stage/cleanup-confirmed.json"),
-      );
-      assert.equal(clean.state, "SETTLED");
-      assert.deepEqual(clean.remainingProcesses, []);
-      assert.equal(
-        (await read(path.join(x.root, "stage/stage-result.json"))).status,
-        "CANDIDATES_REVIEW_REQUIRED",
-      );
-    }
-    assert.equal(
-      (await read(path.join(transport.root, "stage/cleanup-confirmed.json")))
-        .transportTempEmpty,
-      true,
-    );
-    // New exclusive layout only; original read-only ownership is created later.
-    const logical = pins.logicalRoot;
-    await fs.mkdir(logical);
-    await fs.mkdir(path.join(logical, "native"));
-    await fs.mkdir(path.join(logical, "evidence"));
-    await fs.mkdir(path.join(logical, "temp"));
-    const native = seed.record.inventory.find(
-      (e) => e.path === "native/codeatlas-native-analyzer.exe",
-    );
-    const hold = transport.record.inventory.find(
-      (e) => e.path === "stage/transport-holdout/holdout.json",
-    );
-    phase = "MATERIALIZE_PAYLOAD";
-    const licenses = seed.record.inventory.filter((e) =>
-      e.path.startsWith("evidence/licenses/"),
-    );
-    assert(licenses.length > 0);
-    const expected = payloadEntries(
-      transport.record.inventory,
-      native,
-      hold,
-      licenses,
-    );
-    for (const e of expected) {
-      const dest = path.join(logical, e.path);
-      await fs.mkdir(path.dirname(dest), { recursive: true });
-      const from =
-        e.path.startsWith("native/") || e.path.startsWith("evidence/licenses/")
-          ? path.join(seed.root, e.path)
-          : e.path === "evidence/review/holdout.json"
-            ? path.join(transport.root, hold.path)
-            : path.join(transport.root, "transport", e.path.slice(9));
-      await fs.copyFile(from, dest, 1);
-    }
-    await checkMembers(logical, expected);
-    await save(path.join(work, "payload-expected.json"), expected);
-    const before = await inventory(source, "", true);
-    phase = "ORIGINAL_READER_REVIEW";
-    const checked = readRole(source, work);
-    assert.equal(checked.state, "ORIGINAL_REVIEW_CONSISTENT");
+    const { checked, seed, expected, before, logical } = await prepareReview(source, work);
     const generic = await imp(
       source,
       ".github/qualification/r11-staged-pack.mjs",
     );
     const profiles = makePublicProfiles(checked.data);
-    phase = "ADOPT_APPROVED_PROFILE_COPY";
+    stage("ADOPT_APPROVED_PROFILE_COPY");
     await save(path.join(work, "proposed-adopted-profiles.json"), profiles);
     const profileSource = path.join(
       source,
@@ -463,6 +469,7 @@ async function main() {
         profiles,
       ),
     );
+    stage("CATALOG_EMIT");
     const emitted = await generic.emitCatalog(
       source,
       path.join(work, "catalog-build"),
@@ -473,18 +480,22 @@ async function main() {
           path.join(source, "packages/runtime/dist", name),
           text,
         );
+    stage("READER_INVENTORY_AFTER");
     const after = await inventory(source, "", true);
+    stage("READER_DELTA_VERIFY");
     generic.assertReaderDelta(before.files, after.files);
     assert.deepEqual(after.links, before.links);
+    stage("RECHECK_SEED");
     await verifySeed(
       source,
       seed.root,
       retainedSeed.manifestSha256,
       retainedSeed.producerCommit,
     );
-    assert.deepEqual(readRole(source, work), checked);
+    stage("RECHECK_READER");
+    assert.deepEqual(await readRole(source, work), checked);
     await fs.mkdir(path.join(work, "output"));
-    phase = "ONCE_ORIGINAL_PACK";
+    stage("ONCE_ORIGINAL_PACK");
     await save(path.join(work, "pack-attempt.json"), {
       policy: "ONE_CREATE_NO_RETRY",
       sourceCommit,
@@ -505,6 +516,7 @@ async function main() {
         cwd: source,
         windowsHide: true,
         encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
         timeout: 300000,
         maxBuffer: 8_000_000,
       },
@@ -514,19 +526,23 @@ async function main() {
     assert(result.archive.bytes < 512 * 1024 * 1024);
     assert.equal(await hfile(zip), result.archive.sha256);
     const inspection = path.join(work, "inspection");
-    phase = "DECODE_AND_VERIFY";
+    stage("DECODE_AND_VERIFY");
     await fs.mkdir(inspection);
+    stage("ZIP_DECODE");
     await originalZip(source, "Extract", zip, expected, inspection);
     await checkMembers(inspection, expected);
     await checkMembers(logical, expected);
+    stage("FINAL_CLEANUP_VERIFY");
     assert.deepEqual(await fs.readdir(path.join(logical, "temp")), []);
     await noProcesses(source);
+    stage("FINAL_SEED_VERIFY");
     await verifySeed(
       source,
       seed.root,
       retainedSeed.manifestSha256,
       retainedSeed.producerCommit,
     );
+    stage("FINAL_READER_VERIFY");
     const final = await inventory(source, "", true);
     assert.deepEqual(final, after);
     await save(path.join(work, "pack-ready.json"), {
@@ -541,6 +557,7 @@ async function main() {
       ),
       cleanup: "SETTLED_FIXED_PROCESS_SCAN_NOT_HARD_ISOLATION",
     });
+    stage("COMPLETE"); progress.finish();
     console.log(
       "PACKED_DECODED_VERIFIED_NOT_QUALIFIED:" +
         result.archive.sha256 +
@@ -551,6 +568,7 @@ async function main() {
   }
   phase = "UPLOAD_VERIFIED_RESULT";
   assert(process.env.GH_TOKEN);
+  stage("PUBLIC_SAVE");
   const ready = await read(path.join(work, "pack-ready.json"));
   assert.equal(ready.state, "PACKED_DECODED_VERIFIED_NOT_QUALIFIED");
   assert.equal(ready.controlCommit, process.env.GITHUB_SHA);

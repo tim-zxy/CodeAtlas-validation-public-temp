@@ -5,7 +5,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { assertPairedHoldoutGroup, reviewStages } from "./public-pack-review.mjs";
+import { assertPairedHoldoutGroup } from "./public-pack-review.mjs";
+import { createProgress } from "./public-pack-progress.mjs";
 const [source, work] = process.argv.slice(2);
 assert(!process.env.GH_TOKEN && !process.env.GITHUB_TOKEN);
 const require = createRequire(import.meta.url),
@@ -59,11 +60,8 @@ const json = (p) => JSON.parse(fs.readFileSync(p, "utf8")),
 const logical = "C:/CodeAtlas-P05-D5-R10";
 const root = path.join(logical, "evidence");
 let phase;
-const stage = (name) => {
-  assert(reviewStages.includes(name));
-  phase = name;
-  console.error("PACK_REVIEW_STAGE:" + name);
-};
+const progress = createProgress("READER");
+const stage = name => { phase = name; progress.enter(name); };
 stage("NATIVE_BUILD");
 try {
   const layouts = await imp("scripts/helpers/native-refresh-ci-layout.mjs");
@@ -192,7 +190,7 @@ try {
     assert(r.peakResidentBytes <= verification.reservationBytes);
   }
   assert.deepEqual(audit, { subprocess: 0, mutation: 0, network: 0 });
-  stage("COMPLETE");
+  stage("COMPLETE"); progress.finish();
   console.log(
     JSON.stringify({
       state: "ORIGINAL_REVIEW_CONSISTENT",

@@ -1,0 +1,47 @@
+name: Prepare and readonly review diagnostic only
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: public-synthetic-formal-qualification
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false
+    runs-on: windows-2025
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Read fixed packaging controls
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read frozen public source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24.15.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Build frozen reader with private detailed log
+        shell: pwsh
+        run: ./control/public-diagnostic-command.ps1 -Mode build
+      - name: Fetch reviewed immutable inputs with read permission only
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./control/public-diagnostic-command.ps1 -Mode fetch
+      - name: Prepare and readonly review then hard stop
+        shell: pwsh
+        run: ./control/public-diagnostic-command.ps1 -Mode review
