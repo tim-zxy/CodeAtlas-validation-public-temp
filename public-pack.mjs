@@ -428,7 +428,6 @@ export function assertFixedContext(source, work) {
   );
 }
 async function main() {
-  const commandStarted=performance.now();
   const [mode, sourceArg, workArg] = process.argv.slice(2);
   assert(["fetch", "pack", "publish"].includes(mode));
   const source = path.resolve(sourceArg), work = path.resolve(workArg);
@@ -476,6 +475,8 @@ async function main() {
     return;
   }
   if (mode === "pack") {
+    const elapsedBudget=await readJobElapsedClock(path.join(process.env.RUNNER_TEMP,clockName),
+      {runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,controlCommit:process.env.GITHUB_SHA});
     const { checked, seed, expected, before, logical, generic, boundary, protectedRoots } = await prepareReview(source, work);
     const profiles = makePublicProfiles(checked.data);
     stage("ADOPT_APPROVED_PROFILE_COPY");

@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 const fields=st=>Object.fromEntries(["dev","ino","size","mtimeNs","ctimeNs","nlink"].map(k=>[k,String(st[k])]));
-export async function readPackManifest(zip) {
-  const file=zip+".manifest.json";
+export async function readOwnedJson(file, maximumBytes=8000000) {
   assert.equal(path.resolve(file),file);assert.equal(await fs.realpath(file),file);
   const before=await fs.lstat(file,{bigint:true});
   assert(before.isFile()&&!before.isSymbolicLink());assert.equal(before.nlink,1n);
