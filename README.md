@@ -1,22 +1,26 @@
-# Temporary public-safe tool preflight
+# Public-safe CodeAtlas validation experiments
 
-This repository is intended only for a standard windows-2025 runner tool-seal check.
-No project checkout, original R11 ZIP/reader, local paths, user data, dependency
-installation, package scripts, Native build, sampling or actual22 is included.
-The workflow is manual-only, contents:read, single-job and five-minute timeout.
-It uploads no artifacts, uses no cache, secret or release, and emits only tool
-roles, public executable hashes and qualification=NOT_ATTEMPTED.
+Only reviewed configuration and safe result metadata are stored here. No original
+R11 ZIP/reader, developer-computer paths, user project data, secrets, release or
+Actions artifact/cache upload is included. This does not grant production access.
 
-A mismatching seal intentionally fails. Matching these three executable files
-alone does not establish complete DLL/runtime provenance, reader identity, memory
-qualification, actual22, current-source equivalence or Phase 1 acceptance.
+## Build-only experiment
 
-R11 still binds exact original reader topology, ZIP/member digests, environment,
-candidate, corpus and real release/asset metadata. Sanitizing or rebuilding those
-inputs cannot reuse their frozen approval without explicit identity/equivalence
-verification. This preflight never downloads or publishes those inputs.
+Manual public-candidate-build workflow checks out public source
+79da40105d480cce540ac636334dd9b6d3f54956 with fixed action SHAs, Node24.15.0,
+pnpm11.19.0 and Rust1.98.1. It compiles TypeScript once and Native twice, creates
+only small synthetic Java/Python input files and uses read-only generator4 discovery.
+It never executes Native, prepare, tests, formal sampling or actual22. Read BUILD_PLAN.md
+and BUILD_RESULT.md for exact scope, reproducibility limits and observed failure.
 
-Before dispatch: independently verify the repository is public and the runner is
-the standard windows-2025 label. Do not change to a larger runner, add caches or
-artifact storage, publish original data, or broaden token permissions implicitly.
-The account's billing settings and remaining storage are not currently readable.
+## Tool-preflight experiment
+
+Manual tool-preflight workflow checks three existing standard Windows tool hashes
+without checking out project data or installing dependencies. The first run found
+all three default tools different from R11; mismatches intentionally fail.
+
+Both workflows use standard public windows-2025 only, contents:read, single-job
+concurrency, finite soft timeouts and no automatic retry. They use no secret,
+cache action, artifact upload or paid larger runner. Build outputs are temporary;
+public logs contain only public build output and bounded tool/hash metadata.
+No result is resource qualification, R11 equivalence or Phase 1 acceptance.
