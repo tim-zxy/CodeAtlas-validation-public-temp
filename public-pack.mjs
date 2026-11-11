@@ -19,6 +19,7 @@ import { reviewTimeoutMs } from "./public-pack-review.mjs";
 import { createProgress, runProgressChild } from "./public-pack-progress.mjs";
 import { snapshotTree, snapshotFile, assertProtectedEqual, assertReviewTransition } from "./public-pack-invariants.mjs";
 import { budget, assertPackCanStart, assertInspectionCanStart } from "./public-pack-budget.mjs";
+import { readPackManifest, packFailureLines } from "./public-pack-result.mjs";
 const pins = JSON.parse(
   readFileSync(new URL("./public-pack-pins.json", import.meta.url), "utf8"),
 );
@@ -525,10 +526,12 @@ async function main() {
       controlCommit: process.env.GITHUB_SHA,
     });
     const zip = path.join(work, "output", target);
-    const text = execFileSync(
+    try {
+      execFileSync(
       process.execPath,
       [
-        path.join(source, "scripts/native-refresh-ci.mjs"),
+        path.join(import.meta.dirname, "public-pack-create.mjs"),
+        source,
         "pack",
         path.join(logical, "evidence/candidate.json"),
         path.join(logical, "evidence/review/holdout.json"),
@@ -537,14 +540,21 @@ async function main() {
       ],
       {
         cwd: source,
+        env: { ...process.env, GH_TOKEN: "", GITHUB_TOKEN: "" },
         windowsHide: true,
         encoding: "utf8",
         stdio: ["ignore", "pipe", "pipe"],
         timeout: budget.packMs,
         maxBuffer: 8_000_000,
       },
-    );
-    const result = JSON.parse(text);
+      );
+    } catch(error) {
+      for(const line of packFailureLines(error.stderr))console.error(line);
+      throw error;
+    }
+    const result = await readPackManifest(zip);
+    assert.equal(result.candidateSha256,pin("TRANSPORT154-evidence.zip","transport/candidate.json"));
+    assert.equal(result.holdoutSha256,pin("TRANSPORT154-evidence.zip","stage/transport-holdout/holdout.json"));
     assert.deepEqual(result.archive.entries, expected);
     assert(result.archive.bytes < 512 * 1024 * 1024);
     assert.equal(await hfile(zip), result.archive.sha256);

@@ -17,5 +17,5 @@ test("actual guard precedes output/latch and original PACK keeps its source entr
  assert(start>=0);assert(start<source.indexOf('await fs.mkdir(path.join(work, "output"))'));
  assert(start<source.indexOf('path.join(work, "pack-attempt.json")'));
  assert(source.includes('timeout: budget.packMs'));
- assert(source.includes('path.join(source, "scripts/native-refresh-ci.mjs")'));
+ assert(source.includes('path.join(import.meta.dirname, "public-pack-create.mjs")'));
 });
