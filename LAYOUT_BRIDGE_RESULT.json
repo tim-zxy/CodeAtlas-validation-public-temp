@@ -1,0 +1,31 @@
+{
+  "run": "https://github.com/tim-zxy/CodeAtlas-validation-public-temp/actions/runs/42946657226",
+  "controlsCommit": "7215776f161688048f68d185b75ba09f17cf606f",
+  "scope": "EXISTING_V10_PREBUILT_LAYOUT_BUILD_IDENTITY_ONLY",
+  "status": "VERIFIED_NOT_QUALIFIED",
+  "layoutRevision": "p05-d5-exact-layout-v10",
+  "sourceFiles": 54,
+  "nativeSha256": "896884e917c453dbd68f87a7d6bf920c71b66eb1391b9ade177dc278d5486de0",
+  "buildReceiptSha256": "b9355e375ba7ad5af99e37e3adf4a48758a0a2b43ebbbc5804f57a193c3f5e41",
+  "actualBuildCommand": "cargo",
+  "actualBuildArgs": [
+    "build",
+    "--workspace"
+  ],
+  "layoutAcquisition": "ORIGINAL_EXCLUSIVE_COPY",
+  "layoutFreshForBench": false,
+  "environment": {
+    "arch": "x64",
+    "corpusRevision": "p05-native-metadata-memory-v1",
+    "implementationDigest": "efcb8904bbb16ea0c11f2c21254540dfeefd6351a5c9e8eaf0aaa192fc029d9d",
+    "node": "v24.15.0",
+    "platform": "win32",
+    "v8": "13.6.233.17-node.48",
+    "zodVersion": "4.6.1"
+  },
+  "nativeAnalyzerExecuted": false,
+  "prepareCalled": false,
+  "caseWorkersStarted": 0,
+  "profileAdopted": false,
+  "artifactUploaded": false
+}

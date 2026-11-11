@@ -120,3 +120,43 @@ legitimate prebuilt owner/layout bridge, isolated publishing permission, complet
 public-safe inventory/retention, and supported stage/evidence transfer with exact
 execution bounds. Review covers this plan only, not real candidate publication or
 formal qualification. No additional CI was triggered by the synthetic transfer test.
+
+
+## Focused closure, not additional acceptance gates (2026-11-11)
+
+Run42946657226, controls7215776f161688048f68d185b75ba09f17cf606f, passed in2m9s.
+One actual cargo build --workspace, original v10 exclusive prebuilt acquisition,
+54-file source/environment before-after checks and ORIGINAL Native-build verifier
+passed. No prepare, analyzer, case worker, sampling or asset upload. This disposable
+probe created its own receipt directory, so layoutFreshForBench=false; later bench
+must acquire a fresh owner from the same retained binary, not adopt this probe root.
+No v12 or frozen layout change was needed for this build/layout plumbing.
+
+Current implementationDigest efcb8904bbb16ea0c11f2c21254540dfeefd6351a5c9e8eaf0aaa192fc029d9d
+differs from the R11 profile/evidence identity571d757965c5743e60a92f49c795e1995fe3dbeea8d75189ffcda5f9dcd66e73.
+Therefore that R11 cohort cannot qualify this current implementation. Preserve it,
+not relabel it. Future evidence reuse is per exact complete identity, not a blanket
+assumption that every development commit always needs all406 or only Transport154.
+
+Existing policy retains five fresh calibration workers/class, independent holdouts
+and the22 Transport qualifications:406 top-level observations. Post-PACK actual22
+is a separate existing gate, not another calibration.2638 is historical explicit
+launch accounting, not a target/gate/process-tree ceiling. Do not invent launches
+to reach it or omit existing success-path preparation to reduce it. Current serial
+worker/stage control and absolute-peak measurement conditions remain mandatory.
+
+Fast path: batch product development first; reuse exact-source basic CI and narrow
+tests; freeze a stable candidate once and retain it. Reuse unchanged complete
+calibration/corpus/holdout evidence only after original identity gates match.
+Use supported complete stage boundaries, not stitched interrupted Transport rows.
+Ordinary development/basic CI on separate machines can run concurrently; same-host
+heavy resource measurements cannot. Cross-host parallel sampling/merged evidence
+has not been approved or closed by these serial controllers and is not assumed.
+
+The generic original downloader already supports an explicitly pinned repository
+argument and verifies real release/asset metadata; only the R11-specific wrapper is
+fixed to its old asset. Do not edit that historical wrapper. No new generic trust
+contract is needed merely to name the new repository. Real publication still needs
+the narrow publishing permission and reviewed safe inventory/retention decision;
+formal stage execution remains separately unapproved. No more byte-repro/tool
+probes or blanket full tests are required for this unchanged plumbing.
