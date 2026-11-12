@@ -1,0 +1,58 @@
+name: Readonly REQUEST checkout diagnostic, no actual22
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: public-synthetic-formal-qualification
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false && github.run_attempt == '1'
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - name: Read reviewed fixed controls
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        timeout-minutes: 1
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read original failed controls without executing them
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        timeout-minutes: 1
+        with:
+          ref: b49abc015d12bbe36757d147909782919204d657
+          path: old-control
+          persist-credentials: false
+      - name: Read frozen source metadata without build
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        timeout-minutes: 2
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        timeout-minutes: 1
+        with:
+          node-version: 24.15.0
+      - name: Require fixed image and request tools
+        timeout-minutes: 1
+        shell: pwsh
+        run: |
+          if ($env:ImageVersion -ne '20261103.298.1') { throw 'DIAGNOSTIC_IMAGE_MISMATCH' }
+          $expected = @{
+            'node.exe' = '3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5'
+            'pwsh.exe' = '2a6769a3330dc1084d0154bfde7d164ab750ca7f700f313f9d417c1be78b2233'
+          }
+          foreach ($tool in $expected.Keys) {
+            if ((Get-FileHash -LiteralPath (Get-Command $tool).Source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected[$tool]) { throw 'DIAGNOSTIC_TOOL_MISMATCH' }
+          }
+      - name: Inspect old and fixed bytes and validate inputs without writing request
+        timeout-minutes: 2
+        shell: pwsh
+        env:
+          GIT_OPTIONAL_LOCKS: '0'
+        run: node ./control/public-request-readonly-diagnostic.mjs

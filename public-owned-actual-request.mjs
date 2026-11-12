@@ -13,7 +13,8 @@ export function pinnedBytes(file,expected){
  assert(st.isFile()&&!st.isSymbolicLink()&&st.nlink===1n);assert.equal(fs.realpathSync.native(file),file);
  const bytes=fs.readFileSync(file);assert.equal(sha(bytes),expected);return bytes;
 }
-export function createFixedRequest(workspace,approvalSha,coordinatorSha){
+export function requestDiagnosticStage(){return stage;}
+export function readFixedRequestInputs(workspace,approvalSha,coordinatorSha){
  assert.equal(fs.realpathSync.native(workspace),workspace);
  const source=path.join(workspace,'source'),work=path.join(workspace,'pack-work');assertFixedContext(source,work);
  diagnosticRoot=workspace;
@@ -24,8 +25,11 @@ export function createFixedRequest(workspace,approvalSha,coordinatorSha){
  const command=execFileSync('where.exe',['pwsh.exe'],{encoding:'utf8',windowsHide:true,timeout:10000,maxBuffer:10000});
  const powershellPath=fs.realpathSync.native(command.trim().split(/\r?\n/)[0]);
  assert.equal(path.basename(powershellPath),'pwsh.exe');
- const request={schemaVersion:1,readerRoot:path.join(workspace,'reader-freeze/reader'),approvalPath,
+ return {schemaVersion:1,readerRoot:path.join(workspace,'reader-freeze/reader'),approvalPath,
   approvalSha256:approvalSha,outputRoot:path.join(workspace,'actual-output'),powershellPath};
+}
+export function createFixedRequest(workspace,approvalSha,coordinatorSha){
+ const request=readFixedRequestInputs(workspace,approvalSha,coordinatorSha);
  const bytes=Buffer.from(JSON.stringify(request)+'\n'),file=path.join(workspace,'actual-request.json');
  stage='WRITE';
  fs.writeFileSync(file,bytes,{flag:'wx'});return sha(bytes);

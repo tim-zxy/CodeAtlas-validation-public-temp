@@ -200,3 +200,22 @@ Independent narrow review no P1/P2. Real replay remains unverified; no new cloud
 diagnostic or actual run has been executed. A new isolated attempt must be explicitly
 coordinated before dispatch, preserving this failed run and the same fixture.
 Phase1 remains4/21,A6 NOT_QUALIFIED,E02 PROPOSED/uninstalled.
+
+## Independent readonly REQUEST diagnosis preparation
+
+Parent authorized an independent diagnostic, not a restart of formal actual22.
+public-request-readonly-diagnostic.yml checks originalb49 and fixed checkout bytes
+against both original Git blobs/pins on the exact image/tool version, observes
+core.autocrlf without modifying it, then uses shared readFixedRequestInputs.
+The production creator calls that same function before its unchanged exclusive
+write; diagnostic calls only the read portion. Original source79 is checked out
+only for Git/context metadata. No dependency install, compiler/build, archive
+download, request materialization, reader, Native, sampling or artifacts.
+Protected C root, reader/output/request/diagnostic files must stay absent before
+and after. Public output is bounded role/hash/boolean/config/state metadata only.
+
+Fresh9/9 focused tests pass5882.9921ms,0fail/cancel/skip/todo:
+node --test public-request-readonly-diagnostic.test.mjs public-owned-actual-launch.test.mjs
+The new workflow is manual/contentsread/standardWindows/10min and shares serial
+concurrency. Diagnostic outcome and any recovery recommendation remain pending;
+no formal actual22 restart is inferred from this preparation.
