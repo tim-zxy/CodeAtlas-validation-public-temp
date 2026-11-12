@@ -66,10 +66,10 @@ test('bridge retains original download, verify, install, read, approved collect,
  assert.deepEqual(calls.find(x=>x[0]==='collect').slice(1),[['collect','approved','candidate',path.join('output','actual')],installed.fixtureContext,control]);
  assert.equal(calls.find(x=>x[0]==='validate')[2].identity,'identity');
 });
-test('real entry remains closed before construction or I/O: no fixture IDs and no arbitrary digest',async()=>{
- assert.equal(publicActualIdentity.releaseId,null);assert.equal(publicActualIdentity.assetId,null);
+test('real fixture IDs are fixed and untrusted launch context refuses before construction writes',async()=>{
+ assert.equal(publicActualIdentity.releaseId,442510821);assert.equal(publicActualIdentity.assetId,738119268);
  assert(!Object.hasOwn(publicActualIdentity,'readerContentSha256'));
- await assert.rejects(runOwnedActualRequest('MISSING_SOURCE','MISSING_WORK','MISSING_REQUEST','a'.repeat(64),'b'.repeat(64)),/PUBLIC_ACTUAL_RELEASE_NOT_FROZEN/);
+ await assert.rejects(runOwnedActualRequest('MISSING_SOURCE','MISSING_WORK','MISSING_REQUEST','a'.repeat(64),'b'.repeat(64)));
 });
 test('owner context drift during download stops before install and every later worker',async t=>{
  const root=await own(t),events=[];let drift=false,identityChecks=0;
@@ -83,7 +83,7 @@ test('owner context drift during download stops before install and every later w
  await assert.rejects(control.worker('LATER',()=>events.push('forbidden')));
  assert(!events.includes('forbidden'));
 });
-test('closed launcher returns bounded refusal without creating supplied missing paths',async t=>{
+test('untrusted launcher context returns bounded refusal without creating supplied missing paths',async t=>{
  const root=await own(t),missing=path.join(root,'absent');
  const child=spawnSync(process.execPath,[fileURLToPath(new URL('./public-owned-actual-entry.mjs',import.meta.url)),'collect',missing,missing,missing,'a'.repeat(64),'b'.repeat(64)],{encoding:'utf8',windowsHide:true,timeout:10000});
  assert.equal(child.status,1);assert.equal(child.stdout,'');assert.match(child.stderr,/^PUBLIC_OWNED_ACTUAL_REFUSED_OR_FAILED:/);

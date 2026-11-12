@@ -21,6 +21,36 @@ release, actual22, Native build/sampling, production operation or CI switch occu
 Phase1 4/21,A6 NOT_QUALIFIED,E02 PROPOSED/uninstalled. The next actual22 execution and
 real fixture release/asset binding still require their own precise authorization.
 
+## Approved fixture and one actual22 execution - 2026-11-12
+
+User explicitly approved the exact public fixture plus one fresh-runner actual22.
+Release442510821/tag p05-d5-fixture-d88650f7126cf531fcd6eaf820c8e87a103c950d2f9fcd7a79ca914c2001f5df
+is public,non-draft,prerelease,non-latest,target6bcfc71. New asset738119268 is an
+unchanged copy of old737583622:246167030bytes/SHA256b2e534f18d365f6fcd93f316e26833d4e56dfe172c82e5396d72e9fc5582e22c.
+Server state uploaded/digest/size and local full ZIP/5577 decoded-member checks pass;
+decoded954695422bytes. UTF8/UTF16/Latin1 marker checks pass without general safety
+clearance. Old asset/evidence preserved; no user/private input or new PACK.
+
+Original-schema approval (full5577 entries,source/native/candidate/raw/holdout)
+has SHA256ef38e6dc8eb629d399cbba30784db964730b4eaa103b84c0d2643b5c9c42ded7.
+Coordinator binds real IDs and retains source79da401 and original gates. Manual
+public-owned-actual22.yml uses standardwindows-2025,contentsread,attempt1 only,
+120minjob/110minexecution,shared serial concurrency, no artifact upload or CI switch.
+Reviewed fixed coordinatorSHA bc4f9e55d8bcac917fd78cf735f39246c3f2b8582b8f01d4491b5ea670422efd.
+Private wrapper seals request, rejects tokens in reader process, emits typed results
+and at most160 numeric45s heartbeats within the existing256-line output cap. No
+raw diagnostics or local manifests are uploaded. Failures preserve UNKNOWN/no retry.
+
+Prelaunch focused28/28 pass4030.3676ms,followed by necessary mixed-separator launch
+fix and focused5/5 pass3938.1876ms; independent review/narrow fix review no remaining
+P1/P2. Original before/after closed-copy tests stay unchanged. Workflow and request
+have not executed real actual22 at this source-record checkpoint. One dispatch
+will be separately recorded; no result or cleanup success is inferred in advance.
+
+Standard public runners are free per current official GitHub runner reference:
+https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+No larger runner or private Actions quota is used. No phase/A6/E02 promotion.
+
 ## Final local verification and independent review
 
 22/22 focused tests pass,0fail/cancel/skip/todo,2454.4204ms. Same command above;
@@ -97,7 +127,7 @@ Remaining approvals are exact new fixture release/same-ZIP asset binding and rea
 actual22; none is inferred from this successful preparation. No further CI needed
 for this record-only update.
 
-## Same-process actual22 code preparation, no real execution
+## Same-process actual22 code preparation, no real execution (historical checkpoint)
 
 New public-owned-actual.mjs binds the original actual bridge to the approved private
 constructor/owner. New guarded launcher refuses before request reads/construction while real release/asset
@@ -121,3 +151,17 @@ No cloud run, fixture publication, actual22, PACK, Native build/resampling or CI
 switch followed. Real full-bridge install/measurement remains UNVERIFIED, and
 release/asset binding + actual22 authorization + reviewed bounded-log launch wrapper
 are still prerequisites. Phase1 4/21/A6 NOT_QUALIFIED/E02 PROPOSED remain unchanged.
+
+## Final pre-dispatch regression for the approved one attempt
+
+After the explicit fixture/execution approval above, the bounded launch wrapper,
+fixed request, real approval/IDs and manual workflow were independently reviewed.
+One Windows mixed-separator defect was fixed in the launcher and verified with
+an actual stub subprocess; narrow review has no remaining P1/P2. Final combined
+36/36 pass,0fail/cancel/skip/todo,3150.1007ms, including unchanged closed-copy/default-
+log guards and new request/heartbeat/approval/workflow tests. PowerShell/JS syntax
+passes. Command:
+node --test public-owned-actual.test.mjs public-owned-actual-launch.test.mjs public-reader-lease.test.mjs public-reader-seed.test.mjs public-reader-freeze.test.mjs
+No actual22 has been dispatched at this checkpoint; the next receipt/run identity
+must be recorded independently. Historical pending/null-ID notes are superseded
+only by the precise approval and fixed real fixture binding above, not by tests.

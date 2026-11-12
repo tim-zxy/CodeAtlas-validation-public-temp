@@ -110,3 +110,15 @@ narrowly re-reviewed without remaining P1/P2. Fresh results are in CURRENT_STATU
 Real full-bridge installation/measurement has NOT been tested. Phase1 remains4/21,
 A6 NOT_QUALIFIED,E02 PROPOSED/uninstalled. No cloud run or external publication
 was triggered by this preparation.
+
+## Later explicit execution approval and real fixture binding
+
+The user subsequently approved creation of this exact public fixture and one
+actual22 on a fresh standard Windows runner. Historical null-ID/not-authorized
+statements above describe the earlier preparation checkpoint only. The implemented
+launcher now has fixed real release442510821/asset738119268, unchanged ZIP and full
+original approval. CURRENT_STATUS.md records exact pins, tests and dispatch/result.
+Manual workflow120min/step110min and typed private-log wrapper are now prepared;
+no permission or quality gate is widened. A failure/UNKNOWN consumes this attempt,
+never authorizes another dispatch. Source79da401, old R11 and all original evidence
+remain fixed. Public fixture creation alone is not actual/phase acceptance.

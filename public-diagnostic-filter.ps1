@@ -1,10 +1,11 @@
 function Select-DiagnosticProgress {
   [CmdletBinding()]
-  param([Parameter(ValueFromPipeline)]$Line, [string]$PrivateLog)
+  param([Parameter(ValueFromPipeline)]$Line, [string]$PrivateLog, [switch]$ActualHeartbeat)
   begin {
     $allowed = Get-Content -Raw -LiteralPath "$PSScriptRoot/public-pack-progress-stages.json" | ConvertFrom-Json
     $count = 0
     $privateCount = 0
+    $heartbeatCount = 0
   }
   process {
     $text = $Line.ToString()
@@ -13,6 +14,10 @@ function Select-DiagnosticProgress {
       $fields = $text.Split(':')
       $valid = $allowed.($fields[1]) -ccontains $fields[2]
     }
+    if (-not $valid -and $ActualHeartbeat -and $count -lt 256 -and $heartbeatCount -lt 160 -and $text -cmatch '^ACTUAL22_HEARTBEAT:([0-9]{1,7})$' -and [long]$Matches[1] -le 7200000) {
+      $valid = $true
+      $heartbeatCount++
+    }
     if ($valid) { Write-Output $text; $count++ }
     elseif ($PrivateLog -and $privateCount -lt 256) {
       Add-Content -LiteralPath $PrivateLog -Value $text.Substring(0, [Math]::Min($text.Length, 4096))
@@ -20,3 +25,4 @@ function Select-DiagnosticProgress {
     }
   }
 }
+

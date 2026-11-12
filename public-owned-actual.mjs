@@ -1,4 +1,4 @@
-// Same-run Public adapter; real release/asset pins remain absent. No operational CLI.
+// Same-run Public adapter with fixed real fixture IDs; explicit manual execution only.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -11,8 +11,8 @@ const publicActualZipTools = Object.freeze({
   tarPath: path.resolve('C:/Windows/System32/tar.exe'),
 });
 export const publicActualIdentity = Object.freeze({
-  releaseId: null,
-  assetId: null,
+  releaseId: 442510821,
+  assetId: 738119268,
   sourceCommit: '79da40105d480cce540ac636334dd9b6d3f54956',
   existingPackAssetId: 737583622,
   helperSha256: '0d8f8fca213c44295964335c6a210076f580aaf04c75e11af106ad91121ccd16',
