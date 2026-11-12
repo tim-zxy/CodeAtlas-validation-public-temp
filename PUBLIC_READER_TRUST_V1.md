@@ -85,3 +85,12 @@ These references are in tim-zxy/CodeAtlas at frozen source79da401. This document
 controls only the approved additional Public binding. Phase1 remains4/21,
 A6 NOT_QUALIFIED, E02 PROPOSED/uninstalled. No local test or reader-only CI closes
 these gates. Fresh test/review/run evidence is tracked in CURRENT_STATUS.md.
+
+## Consumer wiring, code-only continuation
+
+public-owned-actual.mjs implements the existing same-process consumer requirement,
+with R9 boundary checks and success receipt after owner completion. Its real fixture
+IDs remain absent; the new guarded launcher is not operational authority. It does
+not amend this trust rule, old R11 or any acceptance/installer/cleanup standard.
+See PUBLIC_OWNED_ACTUAL_PREPARATION.md and CURRENT_STATUS.md for tests and remaining
+execution prerequisites. No CI workflow or real actual22 was run by this work.

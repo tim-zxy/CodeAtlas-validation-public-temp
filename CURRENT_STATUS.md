@@ -43,7 +43,7 @@ Local deliverables are ready; fresh specific authorization for the10-file public
 source/workflow sync and one check-only CI is the remaining execution blocker.
 This excludes assets, fixture release, ZIP transfer, actual22, PACK and CI switch.
 
-## Synchronized and real reader-only result — supersedes prior blocker
+## Synchronized and real reader-only result �� supersedes prior blocker
 
 The supplied direct user authorization was accepted through the original platform
 review path for one retry of the unexecuted tree creation. The10 reviewed files
@@ -96,3 +96,28 @@ reference are unchanged. Phase1 stays4/21,A6 NOT_QUALIFIED,E02 PROPOSED/uninstal
 Remaining approvals are exact new fixture release/same-ZIP asset binding and real
 actual22; none is inferred from this successful preparation. No further CI needed
 for this record-only update.
+
+## Same-process actual22 code preparation, no real execution
+
+New public-owned-actual.mjs binds the original actual bridge to the approved private
+constructor/owner. New guarded launcher refuses before request reads/construction while real release/asset
+IDs remain null. Success receipt is written only after consume/post-check completes.
+Original R9 boundaries compose owner.check and original identity checks; every old
+download/verify/install/read/approved-collect/validate/final gate remains. Legacy
+R11 and prior prepared coordinator files are unchanged. No CI workflow is edited.
+
+Fresh24/24 pass,0fail/cancel/skip/todo,2898.6739ms,Node24.15.0:
+node --test public-owned-actual.test.mjs public-reader-lease.test.mjs public-reader-seed.test.mjs
+Both new JS entry/module syntax checks pass. Tests use self-owned temp data and
+original stop helper mirror95f31010a21d66ad0840b4565fbb62546d225bb553101bfa644bc8335d12db1e.
+The9 new cases include all phase failures, final owner refusal before success,
+downloader drift blocking install/workers, original API arguments and bounded
+closed-launcher refusal. They do not execute Native/actual or read user data.
+Independent review found missing per-boundary owner checks; fixed with the exact
+R9 callback composition and a download-drift test; narrow re-review found no P1/P2.
+
+[Exact future invocation, limitations and approval plan](PUBLIC_OWNED_ACTUAL_PREPARATION.md).
+No cloud run, fixture publication, actual22, PACK, Native build/resampling or CI
+switch followed. Real full-bridge install/measurement remains UNVERIFIED, and
+release/asset binding + actual22 authorization + reviewed bounded-log launch wrapper
+are still prerequisites. Phase1 4/21/A6 NOT_QUALIFIED/E02 PROPOSED remain unchanged.
