@@ -86,6 +86,7 @@ test('owner context drift during download stops before install and every later w
 test('untrusted launcher context returns bounded refusal without creating supplied missing paths',async t=>{
  const root=await own(t),missing=path.join(root,'absent');
  const child=spawnSync(process.execPath,[fileURLToPath(new URL('./public-owned-actual-entry.mjs',import.meta.url)),'collect',missing,missing,missing,'a'.repeat(64),'b'.repeat(64)],{encoding:'utf8',windowsHide:true,timeout:10000});
- assert.equal(child.status,1);assert.equal(child.stdout,'');assert.match(child.stderr,/^PUBLIC_OWNED_ACTUAL_REFUSED_OR_FAILED:/);
+ assert.equal(child.status,1);assert(child.stdout.trim().split(/\r?\n/).every(x=>/^ACTUAL22_DIAG:(?:[0-9]{1,9}:){16}[0-9]{1,9}$/.test(x)));
+ assert.match(child.stderr,/^PUBLIC_OWNED_ACTUAL_REFUSED_OR_FAILED:/);
  await assert.rejects(fs.lstat(missing),{code:'ENOENT'});
 });

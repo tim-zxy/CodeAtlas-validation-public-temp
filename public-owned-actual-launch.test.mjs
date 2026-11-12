@@ -73,10 +73,11 @@ test('single approved actual workflow is manual, fixed, read-only and bounded wi
 test('launcher normalizes Windows mixed-separator source/work before fixed-context checks',async t=>{
  const root=await own(t),file=path.join(root,'public-owned-actual-entry.mjs');
  await fs.copyFile(new URL('./public-owned-actual-entry.mjs',import.meta.url),file);
+ await fs.copyFile(new URL('./public-actual-diagnostics.mjs',import.meta.url),path.join(root,'public-actual-diagnostics.mjs'));
  await fs.writeFile(path.join(root,'public-owned-actual.mjs'),`export async function runOwnedActualRequest(...args){return {scope:'TEST_DOUBLE',args};}`);
  const source=root+'/source',work=root+'/pack-work';
  const child=spawnSync(process.execPath,[file,'collect',source,work,'REQUEST','a'.repeat(64),'b'.repeat(64)],{encoding:'utf8',windowsHide:true,timeout:10000});
- assert.equal(child.status,0,child.stderr);const r=JSON.parse(child.stdout);assert.equal(r.scope,'TEST_DOUBLE');
+ assert.equal(child.status,0,child.stderr);const r=JSON.parse(child.stdout.split(/\r?\n/).find(x=>x.startsWith('{')));assert.equal(r.scope,'TEST_DOUBLE');
  assert.equal(r.args[0],path.resolve(source));assert.equal(r.args[1],path.resolve(work));assert.equal(r.args[2],'REQUEST');
 });
 test('fixed approval/coordinator bytes survive Windows autocrlf checkout with exact attributes',async t=>{

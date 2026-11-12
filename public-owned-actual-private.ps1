@@ -23,7 +23,7 @@ try {
     $request = Join-Path "$PWD" 'actual-request.json'
     $requestSha = (Get-FileHash -LiteralPath $request -Algorithm SHA256).Hash.ToLowerInvariant()
     $phase = 'EXECUTE'
-    & node "$PSScriptRoot/public-owned-actual-entry.mjs" collect "$PWD/source" "$PWD/pack-work" $request $requestSha $env:EXPECTED_COORDINATOR_SHA256 2>&1 | Select-DiagnosticProgress -PrivateLog $log -ActualHeartbeat
+    & node "$PSScriptRoot/public-owned-actual-entry.mjs" collect "$PWD/source" "$PWD/pack-work" $request $requestSha $env:EXPECTED_COORDINATOR_SHA256 2>&1 | Select-DiagnosticProgress -PrivateLog $log -ActualHeartbeat -ActualTelemetry
     if ($LASTEXITCODE -ne 0) { throw 'EXECUTION_FAILED' }
   } finally { $PSNativeCommandUseErrorActionPreference = $oldNativePreference }
   $phase = 'RESULT'

@@ -5,6 +5,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {constructRunLocalReader,consumeRunLocalReader} from './public-reader-seed.mjs';
+import {actualDiagnostics} from './public-actual-diagnostics.mjs';
 const publicActualZipTools = Object.freeze({
   powershellSha256: '2a6769a3330dc1084d0154bfde7d164ab750ca7f700f313f9d417c1be78b2233',
   tarSha256: 'a8c4b61db4c2908930be3984d80b4a921f75290c958adc62565da8a455b1230c',
@@ -134,11 +135,14 @@ export function assertPublicExecutionReady() {
 
 // Pure sequencing seam; substitute callbacks cannot issue a real success receipt.
 export async function runOwnedActualSequence(ports,control,check) {
- assert.equal(typeof check,'function');await check();
- const report=await runActual22Sequence(ports,control);await check();return report;
+ assert.equal(typeof check,'function');await actualDiagnostics.timed('OWNER',check);
+ const report=await runActual22Sequence(ports,control);await actualDiagnostics.timed('OWNER',check);return report;
 }
-export function createOwnedActualControl(stop,directory,check,verifyIdentity) {
- return stop.createR9StopControl(directory,async()=>{await check();await verifyIdentity();});
+export async function createOwnedActualControl(stop,directory,check,verifyIdentity,diagnostics=actualDiagnostics) {
+ const base=await stop.createR9StopControl(directory,async()=>{
+  await diagnostics.timed('OWNER',check);await diagnostics.timed('INPUT',verifyIdentity);
+ });
+ return diagnostics.wrapControl(base);
 }
 // Final success is outside consume: a failed owner post-check can never precede
 // an ACTUAL22_VERIFIED receipt. The real entry supplies the private owner runtime.
@@ -148,21 +152,21 @@ export async function settleOwnedActual(consume,operation,success,failure) {
 }
 export async function runOwnedActualRequest(source,work,requestPath,requestSha256,selfSha256) {
  assertPublicExecutionReady(); // Before construction, request reads, network or output.
- const {owner,result}=await constructRunLocalReader(source,work);
+ const {owner,result}=await actualDiagnostics.phase('BOOTSTRAP',()=>constructRunLocalReader(source,work));
  let adapter;
- return settleOwnedActual(
+ return actualDiagnostics.phase('OWNER_SESSION',()=>settleOwnedActual(
   operation=>consumeRunLocalReader(owner,operation),
-  async reader=>{
-   await reader.check();
+  reader=>actualDiagnostics.phase('ADAPTER_SESSION',async()=>{
+   await actualDiagnostics.timed('OWNER',reader.check);
    const helper=path.join(reader.root,'.github/qualification/r11-staged-pack.mjs');
    assert.equal(crypto.createHash('sha256').update(await fs.promises.readFile(helper)).digest('hex'),publicActualIdentity.helperSha256);
    const generic=await import(pathToFileURL(helper).href);
    adapter=createActualAdapter(generic,reader,result.readerContentSha256);
    return adapter.runActualRequest(requestPath,requestSha256,selfSha256);
-  },
-  value=>adapter.complete(value),
-  ()=>adapter?.fail(),
- );
+  }),
+  value=>actualDiagnostics.phase('FINAL_RECEIPT',()=>adapter.complete(value)),
+  ()=>actualDiagnostics.phase('FAILURE_RECEIPT',()=>adapter?.fail()),
+ ));
 }
 function createActualAdapter(generic,reader,sealedDigest) {
  const {inventoryTree,hashFile,assertSeparateRoots,createOwnedDirectory,assertToolSeal,assertExactInventory}=generic;
@@ -260,7 +264,7 @@ async function runActualRequest(requestPath, requestSha256, selfSha256) {
   assertFreshActualLocations(request);
   assertToolSeal(request.approvalPath, request.approvalSha256);
   await withActualZipTools(request.powershellPath, async () => undefined);
-  await reader.check();
+  await actualDiagnostics.timed('OWNER',reader.check);
   const bootstrap = await inventoryTree(request.readerRoot,{allowLinks:true});
   const rootStat = fs.lstatSync(request.readerRoot, { bigint: true }),
     nodeStat = fs.lstatSync(process.execPath, { bigint: true });
@@ -329,7 +333,7 @@ async function runActualRequest(requestPath, requestSha256, selfSha256) {
     assert.deepEqual(modules.runtime.nativeMetadataEnvironment(), publicActualIdentity.environment);
   };
   const verifyComplete = async () => {
-    await verifyIdentity();
+    await actualDiagnostics.timed('INPUT',verifyIdentity);
     assertExactInventory(bootstrap, await inventoryTree(request.readerRoot, { allowLinks: true }));
   };
   await verifyComplete();
