@@ -219,3 +219,35 @@ node --test public-request-readonly-diagnostic.test.mjs public-owned-actual-laun
 The new workflow is manual/contentsread/standardWindows/10min and shares serial
 concurrency. Diagnostic outcome and any recovery recommendation remain pending;
 no formal actual22 restart is inferred from this preparation.
+
+## Readonly cloud diagnosis passed; recovery reported, not dispatched
+
+[Diagnostic43160721338](https://github.com/tim-zxy/CodeAtlas-validation-public-temp/actions/runs/43160721338)
+source1da8d4692fbd5acc11c55fe7e9f5d4787e106f1a,attempt1,job130990976228 completed
+SUCCESS,2026-11-12 05:20:23..05:21:13UTC (50s). Exact original image20261103.298.1
+and Node/PowerShell hashes passed. core.autocrlf=true. Original b49 Git blobs still
+match the approved ef38e6/bc4f9e hashes, but the actual old checkout hashes are
+2c9f2e6b8c1a37f6a87f24887d6dff72d4b0761d7463049d04d525678c7417ef and
+d05e286bed7911f34a620ab42b490f999ee6fb7d05fe3d0fbf06d9542474c1f6 respectively,
+both exactly the CRLF conversions. Fixed checkout retains the original pinned
+hashes. This reproduces the first old request pin rejection on the same image.
+The historical run's private stack remains unavailable; do not claim a uniquely
+proven retrospective cause or exclude all other future runtime failures.
+
+The production-shared readFixedRequestInputs passed context, both pins and
+canonical PowerShell checks. Protected C/reader/output/request/diagnostic targets
+stayed absent before/after. No request written, reader constructed, archive read,
+Native or actual observation. Artifacts0; no package/dependency install or build.
+No actual22 restart occurred. Independent evidence/recovery review recommends the
+same-scope isolated recovery, without treating diagnosis as execution authority.
+
+Proposed next action, awaiting execution coordination: a fresh standard Windows
+runner using unchanged fixture442510821/asset738119268/ZIPb2e534/source79da401,
+original tool pins, fixed checkout and same-process owner. Repeat only ordinary
+preparation/request creation and the still-unstarted actual22 path; no Native
+build,406 resampling,PACK,new asset,profile,numeric or CI-reference changes.
+Preserve both failed run43158945120 and diagnosis; job120min/step110min, original
+stage/worker/cleanup gates, failure/drift/UNKNOWN stop and no automatic retry.
+Check branch/asset identity and absence of duplicate runs before any dispatch.
+This is a recommendation, not a new authorization or a claim of qualification.
+Phase1 remains4/21,A6 NOT_QUALIFIED,E02 PROPOSED/uninstalled.
