@@ -36,8 +36,10 @@ test('every original failing phase blocks all later phases without retry',async 
 test('owner refusal before sequence launches nothing; owner post-check failure never reports success',async t=>{
  const root=await own(t),events=[],control=await createR9StopControl(root);
  await assert.rejects(runOwnedActualSequence(ports(events),control,async()=>{throw Error('owner drift');}));assert.deepEqual(events,[]);
- let checks=0;
- await assert.rejects(runOwnedActualSequence(ports(events),control,async()=>{if(++checks===2)throw Error('late owner drift');}),/late owner drift/);
+ await assert.rejects(control.worker('LATER_AFTER_OWNER_REFUSAL',()=>events.push('forbidden')));
+ let checks=0;const afterControl=await createR9StopControl(await own(t));
+ await assert.rejects(runOwnedActualSequence(ports(events),afterControl,async()=>{if(++checks===2)throw Error('late owner drift');}),/late owner drift/);
+ await assert.rejects(afterControl.worker('LATER_AFTER_POSTCHECK',()=>events.push('forbidden')));
 });
 test('success receipt waits for lease post-consumption checks, not just successful report',async()=>{
  const events=[];let checks=0;
@@ -71,10 +73,10 @@ test('real fixture IDs are fixed and untrusted launch context refuses before con
  assert(!Object.hasOwn(publicActualIdentity,'readerContentSha256'));
  await assert.rejects(runOwnedActualRequest('MISSING_SOURCE','MISSING_WORK','MISSING_REQUEST','a'.repeat(64),'b'.repeat(64)));
 });
-test('owner context drift during download stops before install and every later worker',async t=>{
+test('original key-input drift during download still stops before install and every later worker',async t=>{
  const root=await own(t),events=[];let drift=false,identityChecks=0;
- const check=async()=>assert(!drift,'TEST_DOUBLE_OWNER_DRIFT');
- const control=await createOwnedActualControl({createR9StopControl},root,check,async()=>identityChecks++);
+ const check=async()=>{};
+ const control=await createOwnedActualControl({createR9StopControl},root,check,async()=>{identityChecks++;assert(!drift,'TEST_DOUBLE_KEY_DRIFT');});
  const p=ports(events);p.download=async()=>{events.push('download');drift=true;return 'archive';};
  await assert.rejects(runOwnedActualSequence(p,control,check));
  assert.deepEqual(events,['verifyReader','download']);assert(identityChecks>0);
@@ -89,4 +91,47 @@ test('untrusted launcher context returns bounded refusal without creating suppli
  assert.equal(child.status,1);assert(child.stdout.trim().split(/\r?\n/).every(x=>/^ACTUAL22_DIAG:(?:[0-9]{1,9}:){16}[0-9]{1,9}$/.test(x)));
  assert.match(child.stderr,/^PUBLIC_OWNED_ACTUAL_REFUSED_OR_FAILED:/);
  await assert.rejects(fs.lstat(missing),{code:'ENOENT'});
+});
+
+test('approved fixed sequence keeps six owner scans and all 106 original identity callbacks',async t=>{
+ const root=await own(t);let owners=0,identities=0,workers=0;
+ const lease=createReaderLease({root:'OWNED_DOUBLE',inventory:{},inspect:async()=>({}),compare:assert.deepEqual,verifyContext:async()=>{owners++;}});
+ await lease.consume(async({check})=>{
+  await check(); // reviewed adapter entry
+  await check(); // original request setup
+  const control=await createOwnedActualControl({createR9StopControl},root,check,async()=>{identities++;});
+  const p=ports([]);p.collect=async()=>{
+   for(let i=0;i<22;i++)await control.worker('OWNED:'+i,async()=>{workers++;return {scope:'TEST_DOUBLE'};});
+   // Frozen success-path shape: 16 stage + 44 worker + 46 internal callbacks.
+   // This is a control fixture, not actual Native/collector execution evidence.
+   for(let i=0;i<46;i++)await control.checkpoint('OWNED:INTERNAL:'+i);
+   return {scope:'TEST_DOUBLE'};
+  };
+  await runOwnedActualSequence(p,control,check);
+ });
+ assert.equal(owners,6);assert.equal(identities,106);assert.equal(workers,22);
+});
+
+test('persistent whole-owner drift is rejected at outer postcheck before final success and latches UNKNOWN',async t=>{
+ const root=await own(t),events=[];let drift=false,success=false;
+ const check=async()=>assert(!drift,'TEST_DOUBLE_PERSISTENT_DRIFT');
+ const control=await createOwnedActualControl({createR9StopControl},root,check,async()=>{});
+ const p=ports(events);p.download=async()=>{events.push('download');drift=true;return 'archive';};
+ await assert.rejects(settleOwnedActual(op=>op(),()=>runOwnedActualSequence(p,control,check),()=>{success=true;},async()=>{}),/PERSISTENT_DRIFT/);
+ assert.deepEqual(events,names);assert.equal(success,false);
+ const receipt=JSON.parse(await fs.readFile(path.join(root,'r9-stop-receipt.json'),'utf8'));assert.equal(receipt.cleanupState,'UNKNOWN');assert.equal(receipt.laterLaunchesBlocked,true);
+ await assert.rejects(control.worker('LATER',()=>{}));
+});
+test('approved transient whole-owner drift restored between full scans may be missed',async t=>{
+ const root=await own(t);let drift=false,checks=0;
+ const check=async()=>{checks++;assert(!drift,'FULL_OWNER_DRIFT');};
+ const control=await createOwnedActualControl({createR9StopControl},root,check,async()=>{});
+ const p=ports([]);p.download=async()=>{drift=true;return 'archive';};p.verifyPack=async()=>{drift=false;return {scope:'TEST_DOUBLE'};};
+ const report=await runOwnedActualSequence(p,control,check);assert.equal(report.scope,'TEST_DOUBLE');assert.equal(checks,2);
+});
+test('missing original input callback refuses and UNKNOWN worker blocks later stages',async t=>{
+ const root=await own(t);await assert.rejects(createOwnedActualControl({createR9StopControl},root,async()=>{},undefined));
+ const events=[],control=await createOwnedActualControl({createR9StopControl},root,async()=>{},async()=>{}),p=ports(events);
+ p.collect=async()=>{events.push('collect');return {scope:'TEST_DOUBLE',cleanupState:'UNKNOWN'};};
+ await assert.rejects(runOwnedActualSequence(p,control,async()=>{}));assert(!events.includes('validate'));await assert.rejects(control.worker('LATER',()=>{}));
 });

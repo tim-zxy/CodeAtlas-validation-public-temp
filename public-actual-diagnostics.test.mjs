@@ -49,9 +49,9 @@ test('a control that does not invoke a worker body cannot produce a completed wo
  assert.equal(await c.worker('MEASURE:d-empty',()=>{throw Error('must not run');}),7);
  assert.deepEqual(d.snapshot().workers,{requested:1,started:0,completed:0,failed:0,rejected:1});
 });
-test('original control creation still checks owner then identity once per original callback',async()=>{
+test('original control creation still checks identity once per callback without a full owner scan',async()=>{
  const events=[],d=createActualDiagnostics();let check;
  const c=await createOwnedActualControl({createR9StopControl:async(_,fn)=>{check=fn;return {stage:async(_,op)=>op(),worker:async(_,op)=>op()};}},'OWNED_DOUBLE',async()=>events.push('owner'),async()=>events.push('identity'),d);
- await check();assert.deepEqual(events,['owner','identity']);assert.equal(d.snapshot().owner.calls,1);assert.equal(d.snapshot().input.calls,1);
+ await check();assert.deepEqual(events,['identity']);assert.equal(d.snapshot().owner.calls,0);assert.equal(d.snapshot().input.calls,1);
  assert.equal(await c.stage('READ',async()=>5),5);
 });

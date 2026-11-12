@@ -66,6 +66,6 @@ jobs:
         timeout-minutes: 110
         shell: pwsh
         env:
-          EXPECTED_COORDINATOR_SHA256: 'be3ad83969cd670136394387d699cd4ca77e52e1bc38053516f292a1b0cf43c7'
+          EXPECTED_COORDINATOR_SHA256: '1da5276f0bbe4e17fa986bdbd560ca7b01cecc358380d2dd5f7b51e013e3bb58'
           EXPECTED_APPROVAL_SHA256: 'ef38e6dc8eb629d399cbba30784db964730b4eaa103b84c0d2643b5c9c42ded7'
         run: ./control/public-owned-actual-private.ps1

@@ -1,3 +1,29 @@
+## Approved Public actual22 scan schedule v2 (2026-11-12)
+
+User explicitly accepted variant A: six complete owner scans on the fixed
+synthetic-only single-purpose standard runner, retaining all original critical
+input callbacks (106 on the fixed success-path control fixture), the collector's
+own dependency/byte/topology checks and every actual22 criterion. This supersedes
+only this consumer's v1 full-owner-at-every-R9-boundary requirement below. Other
+consumers, the opaque constructor/one-shot lease and frozen product/R11 are unchanged.
+
+The six scans are lease pre-consumption, adapter entry, sealed request setup,
+pre-sequence, post-sequence and lease post-consumption. Four explicit scans and
+two implicit lease scans remain; no stage, worker, input callback or original
+complete-reader/collector verification is removed or capped. A failed owner check
+latches STOPPED/UNKNOWN and cannot precede a success receipt. Identity callbacks
+still stop before the next operation on key-input drift; in-flight work is not
+preempted. Full whole-tree drift can be detected later, and a transient change
+restored between complete checks may be missed. This is accepted risk, not strict
+equivalence, OS write exclusion or permission to generalize to user inputs.
+
+Source79da401, existing fixture/ZIP/Native/environment identities and original
+acceptance/cleanup gates remain fixed. No 406 resampling, Native build, PACK,
+release/asset change or automatic actual22 retry is authorized by this amendment.
+Historical runs, evidence and UNKNOWN remain intact. Rollback disables the new
+entry or restores the previous reviewed Public control version, not old evidence
+onto new bytes. The original v1 text below is retained as historical authority.
+
 # Public reader same-run trust v1
 
 Accepted by explicit user approval on 2026-11-12 for implementation, independent

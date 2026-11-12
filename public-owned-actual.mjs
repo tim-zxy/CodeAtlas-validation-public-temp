@@ -135,12 +135,23 @@ export function assertPublicExecutionReady() {
 
 // Pure sequencing seam; substitute callbacks cannot issue a real success receipt.
 export async function runOwnedActualSequence(ports,control,check) {
- assert.equal(typeof check,'function');await actualDiagnostics.timed('OWNER',check);
- const report=await runActual22Sequence(ports,control);await actualDiagnostics.timed('OWNER',check);return report;
+ assert.equal(typeof check,'function');
+ try {
+  await actualDiagnostics.timed('OWNER',check);
+  const report=await runActual22Sequence(ports,control);
+  await actualDiagnostics.timed('OWNER',check);return report;
+ } catch(error) {
+  try {await control.fail('OWNED_SEQUENCE_FAILED');}
+  catch(recordError){throw new AggregateError([error,recordError],'Sequence failed; stop receipt unavailable');}
+  throw error;
+ }
 }
 export async function createOwnedActualControl(stop,directory,check,verifyIdentity,diagnostics=actualDiagnostics) {
+ // Retain the existing seam signature; full owner checks belong to the six
+ // surrounding/lease boundaries, not the 106 original identity callbacks.
+ assert.equal(typeof check,'function');assert.equal(typeof verifyIdentity,'function');
  const base=await stop.createR9StopControl(directory,async()=>{
-  await diagnostics.timed('OWNER',check);await diagnostics.timed('INPUT',verifyIdentity);
+  await diagnostics.timed('INPUT',verifyIdentity);
  });
  return diagnostics.wrapControl(base);
 }

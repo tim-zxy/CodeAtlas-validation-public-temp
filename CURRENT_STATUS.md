@@ -1,3 +1,56 @@
+## Approved six-owner Public schedule v2 - 2026-11-12
+
+User explicitly confirmed variant A for fixed public79 synthetic inputs on a
+single-purpose temporary runner. Public adapter retains six complete owner scans
+and all original critical input callbacks (106 in the fixed successful control
+fixture), original complete-reader checks, collector byte/instance/topology
+validation and actual22 criteria. No callback cap or replacement identity proof.
+Whole-tree transient drift restored between full scans may be missed; this is
+accepted exposure, not equivalence or OS write exclusion. Persistent outer-check
+failure latches STOPPED/UNKNOWN before success. Generic one-shot lease is unchanged.
+
+Changed paths: public-owned-actual.mjs; public-owned-actual.test.mjs;
+public-actual-diagnostics.test.mjs; PUBLIC_READER_TRUST_V1.md;
+PUBLIC_OWNED_ACTUAL_PREPARATION.md; .github/workflows/public-owned-actual22.yml;
+CURRENT_STATUS.md. Source79/R11/Native/approval/ZIP/collector/raw evidence unchanged.
+New coordinator SHA256:
+1da5276f0bbe4e17fa986bdbd560ca7b01cecc358380d2dd5f7b51e013e3bb58.
+Workflow changed only this exact coordinator pin; still manual-only, contents:read,
+120min job/110min actual step. No dispatch, new asset, upload or CI-reference switch.
+
+Local owned/synthetic regression39/39,0fail/cancel/skip/TODO,8791.7528ms. The new
+count fixture first failed112vs6; final has6 owner/106 input callbacks/22 simulated
+workers. It is not actual collector/Native evidence or a new success receipt.
+Retained tests cover all original phase failures, key-input drift before install,
+outer persistent drift, the accepted transient window, UNKNOWN latch, one-shot/
+forged owners, lease postcheck before success, closed-launcher/private-log filters.
+Independent readonly review: no P1/P2, count positions and workflow pin verified;
+review did not execute tests or actual22. Raw local test output is not published.
+
+Reproduce only synthetic regressions:
+node --test --test-reporter=tap --test-concurrency=1 public-owned-actual.test.mjs public-actual-diagnostics.test.mjs public-reader-lease.test.mjs public-owned-actual-launch.test.mjs public-actual-diagnostic-filter.test.mjs public-short-diagnostic.test.mjs
+
+Privacy review: only existing public control code, synthetic fixtures, accepted
+risk text, bounded result counts and public hashes/IDs are added. No user project,
+local machine paths, credentials, raw logs, reader/ZIP files or original inventories
+are uploaded. Existing runs/assets and UNKNOWN evidence remain untouched.
+
+No formal retry is authorized by this code amendment. Proposed next execution is
+one fresh independent standard Windows runner using this reviewed control commit,
+fixed source79da401, release442510821/asset738119268 and original exact image/tools.
+Check no active formal run and exact pins/absence before setup; image/tool mismatch
+must stop without silently selecting a newer environment. Keep original120/110min
+limits and failure/drift/UNKNOWN stop, no automatic retry or hard RAM/isolation claim.
+Prior110min timeout root cause is not fully known. Short-probe owner means suggest
+about2.1..2.3min for6 scans versus38..43min for112; about38min nominal owner work may
+be removed, not a whole-run duration guarantee. Original installation/collector
+rechecks remain. Actual22 remains NOT_QUALIFIED and must be separately authorized.
+
+Rollback: disable revised entry or restore controls/docs at388b3cb; preserve old
+measurements/runs/assets and never relabel failed/new identity as qualified. Main
+product source remains independently versioned; public79 evidence cannot qualify
+its newer code by assertion. Phase1 remains4/21,A6 NOT_QUALIFIED,E02 PROPOSED/uninstalled.
+
 # Public validation preparation status
 
 2026-11-12: user approved PUBLIC_READER_SAME_RUN_V1; controlling refinement and
