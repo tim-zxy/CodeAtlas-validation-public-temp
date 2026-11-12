@@ -240,7 +240,7 @@ async function checkMembers(root, entries, privacy = true) {
     for (const e of entries)
       assertPublicBytes(await regular(path.join(root, e.path)));
 }
-async function extract(source, work, asset, seed = false) {
+export async function extract(source, work, asset, seed = false) {
   const zip = path.join(work, "downloads", asset.name);
   assert.equal(await hfile(zip), asset.sha256);
   assert.equal((await fs.stat(zip)).size, asset.bytes);

@@ -39,3 +39,7 @@ Old Temp root draft workflow is NOT included; only .github/workflows is operativ
 
 Real runner outcome is pending until separately recorded. No native qualification,
 actual22 or phase acceptance is implied by these tests or workflow preparation.
+
+
+## Recorded reader-only result
+Run43140260952 at control dc23870dd80395bc7c3516293748cf1bd357251e completed success, attempt1,2026-11-12 02:16:37..02:38:17UTC. Reader digest e15e1bcd6ce9aa1897554b0fbcd3de67ab40ef11f886c71c44a5a8ac1543f8c4;11947files/585links/2194directories;8066dependencies;topology cf73f6ee1c246cc41b5d84035e56085f90e3ed5590bf93de00bd302b5596519c;22 readCorpus cases. Result READER_CLOSURE_VERIFIED_NOT_QUALIFIED,actual22/PACK/upload NOT_ATTEMPTED. No Actions artifact or reader release asset; not a retained reusable bundle. This supersedes the earlier pending-result sentence only. Original qualification/phase gates remain unchanged.
