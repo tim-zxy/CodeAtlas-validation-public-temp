@@ -122,3 +122,13 @@ Manual workflow120min/step110min and typed private-log wrapper are now prepared;
 no permission or quality gate is widened. A failure/UNKNOWN consumes this attempt,
 never authorizes another dispatch. Source79da401, old R11 and all original evidence
 remain fixed. Public fixture creation alone is not actual/phase acceptance.
+
+## Failed request preparation and preserved attempt
+
+The one approved job43158945120 failed in REQUEST before calling the reader/actual
+entry. No retry occurred. Two exact attributes now preserve the already-approved
+JSON/coordinator bytes under Windows checkout; a self-owned Git test proves that
+defect/fix, but unretained private logs prevent a conclusive historical root cause.
+New fixed stage/code diagnostics aid a future explicitly coordinated attempt
+without publishing raw logs. No digest, installer, observation, threshold, asset or
+qualification standard changed. See CURRENT_STATUS.md for exact evidence/state.

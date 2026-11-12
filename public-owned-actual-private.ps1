@@ -1,7 +1,7 @@
 param()
 $ErrorActionPreference = 'Stop'
 $failed = $false
-$phase = 'REQUEST'
+$phase = 'PINS'
 $watch = [Diagnostics.Stopwatch]::StartNew()
 try {
   foreach ($key in @('EXPECTED_COORDINATOR_SHA256','EXPECTED_APPROVAL_SHA256')) {
@@ -9,6 +9,7 @@ try {
     if ($value -cnotmatch '^[a-f0-9]{64}$') { throw 'MISSING_FIXED_PIN' }
   }
   if ($env:GH_TOKEN -or $env:GITHUB_TOKEN) { throw 'TOKEN_NOT_ALLOWED_IN_READER' }
+  $phase = 'PRIVATE_LOG'
   $log = Join-Path $env:RUNNER_TEMP 'codeatlas-owned-actual22.log'
   $handle = [IO.File]::Open($log,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write)
   $handle.Dispose()
@@ -16,6 +17,7 @@ try {
   $oldNativePreference = $PSNativeCommandUseErrorActionPreference
   try {
     $PSNativeCommandUseErrorActionPreference = $false
+    $phase = 'REQUEST'
     & node "$PSScriptRoot/public-owned-actual-request.mjs" "$PWD" $env:EXPECTED_APPROVAL_SHA256 $env:EXPECTED_COORDINATOR_SHA256 2>&1 | Select-DiagnosticProgress -PrivateLog $log
     if ($LASTEXITCODE -ne 0) { throw 'REQUEST_FAILED' }
     $request = Join-Path "$PWD" 'actual-request.json'
@@ -41,6 +43,15 @@ try {
 } catch {
   $failed = $true
   Write-Output "ACTUAL22_STEP_STOPPED_NOT_QUALIFIED:$phase"
+  $diagnostic = "$PWD/actual-request-diagnostic.json"
+  if (Test-Path -LiteralPath $diagnostic) {
+    try {
+      $d = Get-Content -Raw -LiteralPath $diagnostic | ConvertFrom-Json
+      if ($d.stage -is [string] -and @('CONTEXT','APPROVAL','COORDINATOR','POWERSHELL','WRITE') -ccontains $d.stage -and $d.code -is [string] -and @('ERR_ASSERTION','ENOENT','EEXIST','EPERM','EACCES','ETIMEDOUT','REQUEST_GUARD_FAILED') -ccontains $d.code) {
+        Write-Output ('ACTUAL22_REQUEST_DIAGNOSTIC:' + $d.stage + ':' + $d.code)
+      }
+    } catch {}
+  }
   $stop = "$PWD/actual-output/r9-stop-receipt.json"
   if (Test-Path -LiteralPath $stop) {
     try {

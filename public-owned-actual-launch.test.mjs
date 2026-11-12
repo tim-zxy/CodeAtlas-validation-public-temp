@@ -20,11 +20,15 @@ test('request bytes require original hash and regular single-link identity',asyn
  const alias=path.join(root,'linked.json');await fs.link(file,alias);assert.throws(()=>pinnedBytes(file,hash(bytes)));
 });
 test('private actual wrapper releases only typed success, hides raw output and fails closed',async t=>{
- for(const mode of ['valid','array','failed']){
+ for(const mode of ['valid','array','failed','request-failed','request-array']){
   const root=await own(t),control=path.join(root,'control'),logs=path.join(root,'logs');await fs.mkdir(control);await fs.mkdir(logs);
   for(const n of ['public-owned-actual-private.ps1','public-diagnostic-filter.ps1','public-pack-progress-stages.json'])
    await fs.copyFile(new URL('./'+n,import.meta.url),path.join(control,n));
-  await fs.writeFile(path.join(control,'public-owned-actual-request.mjs'),`import fs from 'node:fs';fs.writeFileSync('actual-request.json','{}\\n',{flag:'wx'});console.log('RAW_PRIVATE_REQUEST');`);
+  const requestFailure=mode==='request-failed'||mode==='request-array';
+  const diagnostic={schemaVersion:1,state:'REQUEST_STOPPED',stage:mode==='request-array'?['APPROVAL','PRIVATE_PAYLOAD']:'APPROVAL',code:'ERR_ASSERTION',privateNote:'PRIVATE_PAYLOAD'};
+  await fs.writeFile(path.join(control,'public-owned-actual-request.mjs'),requestFailure?
+   `import fs from 'node:fs';fs.writeFileSync('actual-request-diagnostic.json',${JSON.stringify(JSON.stringify(diagnostic))},{flag:'wx'});console.log('RAW_PRIVATE_REQUEST');process.exitCode=1;`:
+   `import fs from 'node:fs';fs.writeFileSync('actual-request.json','{}\\n',{flag:'wx'});console.log('RAW_PRIVATE_REQUEST');`);
   const result={state:mode==='array'?['ACTUAL22_VERIFIED_NOT_PHASE_ACCEPTED','PRIVATE_PAYLOAD']:'ACTUAL22_VERIFIED_NOT_PHASE_ACCEPTED',actualObservations:22,retry:false,hardIsolation:false,candidateSha256:'d88650f7126cf531fcd6eaf820c8e87a103c950d2f9fcd7a79ca914c2001f5df',archiveSha256:'b2e534f18d365f6fcd93f316e26833d4e56dfe172c82e5396d72e9fc5582e22c',coordinatorSha256:'a'.repeat(64),approvalSha256:'b'.repeat(64),requestSha256:hash(Buffer.from('{}\n')),readerContentSha256:'c'.repeat(64),privateNote:'PRIVATE_PAYLOAD'};
   await fs.writeFile(path.join(control,'public-owned-actual-entry.mjs'),mode==='failed'?`console.error('RAW_PRIVATE_FAILURE');process.exitCode=1;`:
    `import fs from 'node:fs';fs.mkdirSync('actual-output');fs.writeFileSync('actual-output/coordinator-result.json',${JSON.stringify(JSON.stringify(result))});for(let i=0;i<300;i++)console.log('ACTUAL22_HEARTBEAT:1');console.log('ACTUAL22_HEARTBEAT:PRIVATE_PAYLOAD');console.log('RAW_PRIVATE_RESULT');`);
@@ -33,6 +37,8 @@ test('private actual wrapper releases only typed success, hides raw output and f
   const child=spawnSync('pwsh',['-NoProfile','-NonInteractive','-File',path.join(control,'public-owned-actual-private.ps1')],{cwd:root,env,encoding:'utf8',windowsHide:true,timeout:10000});
   assert.equal(child.status,mode==='valid'?0:1,child.stdout+child.stderr);assert(!/RAW_PRIVATE|PRIVATE_PAYLOAD/.test(child.stdout+child.stderr));
   assert((await fs.readFile(path.join(logs,'codeatlas-owned-actual22.log'),'utf8')).includes('RAW_PRIVATE'));
+  if(mode==='request-failed')assert(child.stdout.includes('ACTUAL22_REQUEST_DIAGNOSTIC:APPROVAL:ERR_ASSERTION'));
+  if(mode==='request-array')assert(!child.stdout.includes('ACTUAL22_REQUEST_DIAGNOSTIC:'));
   if(mode==='valid'){
    assert.equal(child.stdout.split(/\r?\n/).filter(x=>x==='ACTUAL22_HEARTBEAT:1').length,160);
    const out=JSON.parse(child.stdout.split(/\r?\n/).find(x=>x.startsWith('{')));assert.equal(out.actualObservations,22);assert.equal(out.hardIsolation,false);
@@ -72,4 +78,22 @@ test('launcher normalizes Windows mixed-separator source/work before fixed-conte
  const child=spawnSync(process.execPath,[file,'collect',source,work,'REQUEST','a'.repeat(64),'b'.repeat(64)],{encoding:'utf8',windowsHide:true,timeout:10000});
  assert.equal(child.status,0,child.stderr);const r=JSON.parse(child.stdout);assert.equal(r.scope,'TEST_DOUBLE');
  assert.equal(r.args[0],path.resolve(source));assert.equal(r.args[1],path.resolve(work));assert.equal(r.args[2],'REQUEST');
+});
+test('fixed approval/coordinator bytes survive Windows autocrlf checkout with exact attributes',async t=>{
+ const root=await own(t),git=(...args)=>{
+  const r=spawnSync('git',args,{cwd:root,encoding:'utf8',windowsHide:true,timeout:10000,maxBuffer:100000});
+  assert.equal(r.status,0,r.stderr);return r.stdout.trim();
+ };
+ git('init','--quiet');git('config','core.autocrlf','true');
+ const names=['public-actual-approval.json','public-owned-actual.mjs'];
+ const originals=new Map();
+ for(const n of names){const b=await fs.readFile(new URL('./'+n,import.meta.url));originals.set(n,b);await fs.writeFile(path.join(root,n),b);}
+ await fs.writeFile(path.join(root,'.gitattributes'),'third-party-notices/* -text\n');
+ // Explicit staging affects only this disposable test repository, never CodeAtlas.
+ git('add','--',...names,'.gitattributes');
+ await fs.mkdir(path.join(root,'bad'));git('checkout-index','--prefix=bad/','--all');
+ for(const n of names)assert.notEqual(hash(await fs.readFile(path.join(root,'bad',n))),hash(originals.get(n)));
+ await fs.copyFile(new URL('./.gitattributes',import.meta.url),path.join(root,'.gitattributes'));git('add','--','.gitattributes');
+ await fs.mkdir(path.join(root,'good'));git('checkout-index','--prefix=good/','--all');
+ for(const n of names)assert.equal(hash(await fs.readFile(path.join(root,'good',n))),hash(originals.get(n)));
 });

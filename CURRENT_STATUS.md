@@ -165,3 +165,38 @@ node --test public-owned-actual.test.mjs public-owned-actual-launch.test.mjs pub
 No actual22 has been dispatched at this checkpoint; the next receipt/run identity
 must be recorded independently. Historical pending/null-ID notes are superseded
 only by the precise approval and fixed real fixture binding above, not by tests.
+
+## One approved run stopped at request preparation, no actual22 started
+
+[Run43158945120](https://github.com/tim-zxy/CodeAtlas-validation-public-temp/actions/runs/43158945120)
+at exactb49abc015d12bbe36757d147909782919204d657,attempt1,2026-11-12
+05:04:50..05:06:10UTC,job130985339252 ended FAILURE. Build39822ms/fetch2144ms
+passed; actual wrapper emitted ACTUAL22_STEP_STOPPED_NOT_QUALIFIED:REQUEST.
+No EXECUTE phase, reader constructor progress, actual report or actual observations.
+The source branch stops before invoking the actual entry when request preparation
+fails. No actual installation/Native measurement was started by this entry. No
+global process-tree cleanup proof is inferred. Artifacts0; private logs were not
+uploaded or retained. No automatic retry/second dispatch occurred. Fixture assets
+remain intact and neither PACK nor main-project CI switch followed.
+
+Exact request subcause remains UNKNOWN: old public diagnostics identify REQUEST
+only. Repository attributes protected notices only; pinned LF JSON/coordinator can
+therefore change bytes under Windows core.autocrlf checkout. A disposable-Git test
+reproduces both wrong hashes with autocrlf=true and preserves both approved hashes
+with two exact -text rules. This is a demonstrated compatibility defect, NOT proof
+that this host's unrecorded Git config was the sole historical cause.
+
+Offline fix adds only /public-actual-approval.json and /public-owned-actual.mjs
+byte-preserving attributes. Approvalef38e6/coordinatorbc4f9e/ZIPb2e534 and all original
+gates stay unchanged; no lower threshold, normalized-after-check bytes, new profile,
+Native rebuild or sampling. Request diagnostics now preserve only a fixed stage/code
+enum in an exclusive workspace receipt, after context validation, and the wrapper
+releases only those typed enums. Unknown/private messages and arrays refuse.
+
+Fresh focused6/6 pass,0fail/cancel/skip/todo,5910.065ms (request/typed logs including
+malicious diagnostics, approval/workflow pins, normalized launch and autocrlf
+checkout). Command: node --test public-owned-actual-launch.test.mjs
+Independent narrow review no P1/P2. Real replay remains unverified; no new cloud
+diagnostic or actual run has been executed. A new isolated attempt must be explicitly
+coordinated before dispatch, preserving this failed run and the same fixture.
+Phase1 remains4/21,A6 NOT_QUALIFIED,E02 PROPOSED/uninstalled.

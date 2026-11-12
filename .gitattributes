@@ -1,1 +1,3 @@
 third-party-notices/* -text
+/public-actual-approval.json -text
+/public-owned-actual.mjs -text
