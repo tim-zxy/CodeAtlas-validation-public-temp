@@ -10,6 +10,20 @@ import {verifySeed,sha,sourceCommit} from "./public-seed.mjs";
 import {retainedSeed} from "./retained-seed.mjs";
 import {snapshotTree,assertProtectedEqual,assertReaderTransition} from "./public-pack-invariants.mjs";
 import {createProgress} from "./public-pack-progress.mjs";
+import {createReaderLease} from "./public-reader-lease.mjs";
+const runLocalOwners=new WeakMap();
+const runContext=()=>({pid:process.pid,timeOrigin:performance.timeOrigin,execPath:process.execPath,
+ execArgv:[...process.execArgv],nodeOptions:process.env.NODE_OPTIONS??null,nodePath:process.env.NODE_PATH??null,
+ runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,control:process.env.GITHUB_SHA});
+export function assertRunLocalLaunch(context=runContext()) {
+ assert.deepEqual(context.execArgv,[],"Reader execution flags forbidden");
+ assert(!context.nodeOptions&&!context.nodePath,"Reader preloads and NODE_PATH forbidden");
+}
+export async function consumeRunLocalReader(owner,consumer) {
+ const lease=runLocalOwners.get(owner);assert(lease,"Unknown run-local reader owner");
+ runLocalOwners.delete(owner);return lease.consume(consumer);
+}
+export function constructRunLocalReader(source,work) {return constructReader(source,work,true);}
 const pins=JSON.parse(await fs.readFile(new URL("./public-pack-pins.json",import.meta.url),"utf8"));
 export const expectedReaderSha256="e15e1bcd6ce9aa1897554b0fbcd3de67ab40ef11f886c71c44a5a8ac1543f8c4";
 export const expectedProfilesSha256="9b2716123d15227808c35fe9dd24eb5393131192aca9aaa0f1d83a90db3077f4";
@@ -46,9 +60,16 @@ async function primaryTools() {
  assert.equal(sha(await fs.readFile(pwsh)),"2a6769a3330dc1084d0154bfde7d164ab750ca7f700f313f9d417c1be78b2233");
  assert.equal(sha(await fs.readFile(path.join(process.env.SystemRoot,"System32/tar.exe"))),"a8c4b61db4c2908930be3984d80b4a921f75290c958adc62565da8a455b1230c");
 }
-export async function bootstrapSeedReader(source,work) {
+export function bootstrapSeedReader(source,work) {return constructReader(source,work,false);}
+async function constructReader(source,work,runLocal) {
+ if(runLocal)assertRunLocalLaunch();
  assertFixedContext(source,work);assert(!process.env.GH_TOKEN&&!process.env.GITHUB_TOKEN);
  await assertActualTargetAbsent();await primaryTools();
+ const context=runContext();
+ if(runLocal) {
+  assert.match(context.runId??"",/^[1-9][0-9]*$/);assert.match(context.attempt??"",/^[1-9][0-9]*$/);
+  assert.equal(execFileSync("git",["rev-parse","HEAD"],{cwd:import.meta.dirname,encoding:"utf8",windowsHide:true}).trim(),context.control);
+ }
  const progress=createProgress("PARENT");
  progress.enter("EXTRACT_FIXED_INPUTS");
  const seed=await extract(source,work,pins.assets[0],true);
@@ -99,17 +120,41 @@ export async function bootstrapSeedReader(source,work) {
  const raw=content(inventory),bytes=Buffer.from(JSON.stringify(raw)),observed=sha(bytes);
  await fs.writeFile(path.join(output,"reader-inventory.json"),bytes,{flag:"wx"});
  const catalog=JSON.parse(await fs.readFile(path.join(seed.root,"evidence/reader-catalog.json"),"utf8"));
- const result={schemaVersion:1,state:staticReaderState(observed),sourceCommit,controlCommit:process.env.GITHUB_SHA,
+ const result={schemaVersion:runLocal?2:1,state:runLocal?"READER_RUN_LOCAL_SEALED_NOT_QUALIFIED":staticReaderState(observed),sourceCommit,controlCommit:process.env.GITHUB_SHA,
   readerContentSha256:observed,expectedReaderSha256,profileObjectSha256:expectedProfilesSha256,
   topologyDigest:catalog.topology.digest,dependencyEntries:catalog.dependencies.length,
   files:raw.files.length,links:raw.links.length,directories:raw.directories.length,cases:0,
   logicalLayoutAbsent:true,actual22:"NOT_ATTEMPTED",pack:"NOT_ATTEMPTED",upload:"NOT_ATTEMPTED",
   retention:"RUNNER_LOCAL_ONLY_NOT_A_REUSABLE_RETAINED_BUNDLE",historicalWholeTreeEquality:"NOT_CLAIMED"};
+ if(runLocal) {
+  delete result.expectedReaderSha256;
+  result.trustRule="PUBLIC_READER_SAME_RUN_V1";result.transferable=false;
+  const lease=createReaderLease({root:reader,inventory,
+   inspect:root=>generic.inventoryTree(root,{allowLinks:true}),compare:generic.assertExactInventory,
+   verifyContext:async()=>{
+    assert.deepEqual(runContext(),context);assertFixedContext(source,work);
+    assert(!process.env.GH_TOKEN&&!process.env.GITHUB_TOKEN);await primaryTools();
+    assertProtectedEqual(controlBefore,await snapshotTree(import.meta.dirname,{hashFile:generic.hashFile,allowLinks:true,allowHardlinks:true}));
+    assertProtectedEqual(after,await snap());
+    generic.assertExactInventory(seedBefore,await generic.inventoryTree(seed.root));
+    await verifySeed(reader,seed.root,retainedSeed.manifestSha256,retainedSeed.producerCommit);
+   }});
+  const owner=Object.freeze({});runLocalOwners.set(owner,lease);
+  await save(path.join(output,"result.json"),result);progress.enter("COMPLETE");progress.finish();
+  return {owner,result};
+ }
  await save(path.join(output,"result.json"),result);progress.enter("COMPLETE");progress.finish();
  assert.equal(observed,expectedReaderSha256,"Complete reader differs from externally fixed pin");
  return result;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
- try{const[mode,a,b]=process.argv.slice(2);assert.equal(mode,"seed");assert.equal(process.argv.length,5);await bootstrapSeedReader(path.resolve(a),path.resolve(b));}
+ try{const[mode,a,b]=process.argv.slice(2);assert(["seed","owned"].includes(mode));assert.equal(process.argv.length,5);
+  if(mode==="owned") {
+   const {owner}=await constructRunLocalReader(path.resolve(a),path.resolve(b));
+   await consumeRunLocalReader(owner,async()=>{await assertActualTargetAbsent();});
+   await save(path.join(path.dirname(path.resolve(a)),"reader-freeze/owner-check.json"),
+    {schemaVersion:1,state:"OWNER_CONSUMED_CHECK_ONLY",actual22:"NOT_ATTEMPTED"});
+  } else await bootstrapSeedReader(path.resolve(a),path.resolve(b));}
  catch{console.error("READER_SEED_STOPPED_NOT_QUALIFIED_NO_RETRY");process.exitCode=1;}
 }
+

@@ -6,7 +6,18 @@ import path from "node:path";
 import os from "node:os";
 import {createHash} from "node:crypto";
 import {spawnSync} from "node:child_process";
-import {assertActualTargetAbsent,assertPinnedMember,assertProfileIdentity,staticReaderState,expectedReaderSha256} from "./public-reader-seed.mjs";
+import {assertActualTargetAbsent,assertPinnedMember,assertProfileIdentity,staticReaderState,expectedReaderSha256,assertRunLocalLaunch} from "./public-reader-seed.mjs";
+test("owned reader rejects Node flags, preloads and NODE_PATH before construction",()=>{
+ const valid={execArgv:[],nodeOptions:null,nodePath:null};assertRunLocalLaunch(valid);
+ for(const c of [{execArgv:["--import=caller.mjs"]},{nodeOptions:"--require caller.cjs"},{nodePath:"caller-modules"}])
+  assert.throws(()=>assertRunLocalLaunch({...valid,...c}));
+});
+test("owned workflow is explicit, manual, read-only and cannot trigger actual22 or publish",async()=>{
+ const wf=await fs.readFile(new URL("./.github/workflows/public-reader-owned.yml",import.meta.url),"utf8");
+ assert(wf.includes("workflow_dispatch: null")&&wf.includes("contents: read")&&wf.includes("-Mode owned"));
+ assert(!/contents: write|upload-artifact|release upload|\.mjs (collect|pack|publish) /.test(wf));
+ assert(wf.includes("timeout-minutes: 30")&&wf.includes("20261103.298.1"));
+});
 async function own(t){
  const root=await fs.mkdtemp(path.join(realpathSync.native(os.tmpdir()),"seed-reader-double-"));
  t.after(async()=>{const p=realpathSync.native(root);assert(p.startsWith(realpathSync.native(os.tmpdir())+path.sep));await fs.rm(p,{recursive:true,force:true});});return root;
@@ -64,4 +75,21 @@ test("mismatch metadata is public but raw diagnostics remain private and result 
  const out=JSON.parse(line);assert.equal(out.state,result.state);assert.equal(out.readerContentSha256,result.readerContentSha256);
  assert.equal(out.actual22,"NOT_ATTEMPTED");assert.equal(out.cases,0);assert.equal(out.logicalLayoutAbsent,true);
  assert((await fs.readFile(path.join(logs,"codeatlas-reader-only-seed.log"),"utf8")).includes("RAW_PRIVATE_DIAGNOSTIC"));
+});
+test("owned output is bounded, typed and check-only; array-shaped fields cannot leak",async t=>{
+ for(const malicious of [false,true]){
+  const root=await own(t),control=path.join(root,"control"),logs=path.join(root,"logs"),output=path.join(root,"reader-freeze");
+  await fs.mkdir(control);await fs.mkdir(logs);await fs.mkdir(output);
+  for(const n of ["public-reader-private.ps1","public-diagnostic-filter.ps1","public-pack-progress-stages.json"])
+   await fs.copyFile(new URL("./"+n,import.meta.url),path.join(control,n));
+  const r={schemaVersion:2,state:malicious?["READER_RUN_LOCAL_SEALED_NOT_QUALIFIED","DO_NOT_EXPOSE"]:"READER_RUN_LOCAL_SEALED_NOT_QUALIFIED",sourceCommit:"79da40105d480cce540ac636334dd9b6d3f54956",controlCommit:"c".repeat(40),trustRule:"PUBLIC_READER_SAME_RUN_V1",transferable:false,logicalLayoutAbsent:true,readerContentSha256:"1".repeat(64),profileObjectSha256:"9b2716123d15227808c35fe9dd24eb5393131192aca9aaa0f1d83a90db3077f4",topologyDigest:"cf73f6ee1c246cc41b5d84035e56085f90e3ed5590bf93de00bd302b5596519c",files:2,links:0,directories:1,dependencyEntries:8066,cases:0,privateNote:"DO_NOT_EXPOSE"};
+  await fs.writeFile(path.join(output,"result.json"),JSON.stringify(r));
+  await fs.writeFile(path.join(output,"owner-check.json"),JSON.stringify({schemaVersion:1,state:"OWNER_CONSUMED_CHECK_ONLY",actual22:"NOT_ATTEMPTED"}));
+  await fs.writeFile(path.join(control,"public-reader-seed.mjs"),'console.log("RAW_PRIVATE_DIAGNOSTIC");');
+  const env=Object.fromEntries(["SystemRoot","WINDIR","PATH","PATHEXT","ComSpec","TEMP","TMP"].filter(k=>process.env[k]!==undefined).map(k=>[k,process.env[k]]));
+  Object.assign(env,{RUNNER_TEMP:logs,GITHUB_SHA:"c".repeat(40)});
+  const child=spawnSync("pwsh",["-NoProfile","-NonInteractive","-File",path.join(control,"public-reader-private.ps1"),"-Mode","owned"],{cwd:root,env,encoding:"utf8",windowsHide:true,timeout:10000});
+  assert.equal(child.status,malicious?1:0,child.stdout+child.stderr);assert(!/DO_NOT_EXPOSE|RAW_PRIVATE/.test(child.stdout+child.stderr));
+  if(!malicious){const line=child.stdout.split(/\r?\n/).find(x=>x.startsWith("{"));const out=JSON.parse(line);assert.equal(out.ownerCheck,"CONSUMED_CHECK_ONLY");assert.equal(out.transferable,false);assert.equal(out.actual22,"NOT_ATTEMPTED");}
+ }
 });

@@ -1,0 +1,68 @@
+name: Run-local public79 reader owner, no actual22
+on:
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: public-synthetic-formal-qualification
+  cancel-in-progress: false
+jobs:
+  seed_reader:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Read fixed packaging controls
+        timeout-minutes: 1
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.sha }}
+          path: control
+          persist-credentials: false
+      - name: Read frozen public source
+        timeout-minutes: 2
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: 79da40105d480cce540ac636334dd9b6d3f54956
+          path: source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        timeout-minutes: 1
+        with:
+          node-version: 24.15.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1
+        timeout-minutes: 1
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Require original cloud image and primary tools
+        timeout-minutes: 1
+        shell: pwsh
+        run: |
+          if (Test-Path -LiteralPath 'C:/CodeAtlas-P05-D5-R10') { throw 'ACTUAL_TARGET_ALREADY_PRESENT' }
+          if ($env:ImageVersion -ne '20261103.298.1') { throw 'READER_IMAGE_MISMATCH' }
+          $expected = @{
+            'node.exe' = '3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5'
+            'pwsh.exe' = '2a6769a3330dc1084d0154bfde7d164ab750ca7f700f313f9d417c1be78b2233'
+          }
+          foreach ($tool in $expected.Keys) {
+            if ((Get-FileHash -LiteralPath (Get-Command $tool).Source -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected[$tool]) { throw 'READER_TOOL_MISMATCH' }
+          }
+          if ((Get-FileHash -LiteralPath (Join-Path $env:SystemRoot 'System32/tar.exe') -Algorithm SHA256).Hash.ToLowerInvariant() -ne 'a8c4b61db4c2908930be3984d80b4a921f75290c958adc62565da8a455b1230c') { throw 'READER_TAR_MISMATCH' }
+      - name: Prepare copied frozen reader without Native rebuild
+        timeout-minutes: 4
+        shell: pwsh
+        run: ./control/public-reader-private.ps1 -Mode build
+      - name: Fetch fixed inputs without PACK or publication
+        timeout-minutes: 4
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./control/public-reader-private.ps1 -Mode fetch
+      - name: Construct and consume run-local reader owner, no actual22
+        timeout-minutes: 20
+        shell: pwsh
+        run: ./control/public-reader-private.ps1 -Mode owned

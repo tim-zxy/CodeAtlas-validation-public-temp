@@ -38,3 +38,11 @@ Existing reader-only proof43140260952 succeeded in21m40s with11947 files/585 lin
 2194 directories,8066 dependency entries and22 readCorpus cases (NOT actual samples).
 It did not retain a transferable reader. This seed-only step is preparation for a
 future same-runner path, not an available/authorized actual22 command.
+
+## Approved Public same-run continuation �� 2026-11-12
+
+The historical run/pin statements above remain exact for their original path.
+User approved a separate same-run construction/seal rule; see [PUBLIC_READER_TRUST_V1.md](PUBLIC_READER_TRUST_V1.md) and [CURRENT_STATUS.md](CURRENT_STATUS.md).
+The new explicit owned workflow never accepts a caller-provided digest as authority.
+It preserves original dependency/instance/topology, installer and acceptance gates;
+old R11 and legacy seed remain unchanged. No new fixture or actual22 is authorized.
