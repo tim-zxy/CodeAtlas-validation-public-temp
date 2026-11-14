@@ -1,0 +1,51 @@
+name: Once-only isolated A4 REFRESH diagnostic
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: public-synthetic-formal-qualification
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false && github.run_attempt == 1
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out diagnostic control
+        uses: actions/checkout@v4
+        with:
+          path: control
+          persist-credentials: false
+      - name: Check out exact failed source
+        uses: actions/checkout@v4
+        with:
+          repository: tim-zxy/CodeAtlas
+          ref: a4b54bfc4319d2f25c498cc03cabc4a3f539e38a
+          path: source
+          persist-credentials: false
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+      - name: Install Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+      - name: Install fixed Rust toolchain
+        run: rustup toolchain install 1.98.1 --profile default
+      - name: Install locked dependencies without scripts
+        run: node control/refresh-a4-diagnostic.mjs install
+      - name: Build diagnostic source
+        run: node control/refresh-a4-diagnostic.mjs build
+      - name: Run only original REFRESH files until first file failure
+        run: node control/refresh-a4-diagnostic.mjs test
+      - name: Preserve only bounded redacted diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a4-refresh-diagnostic-redacted
+          path: diagnostic/safe/*.json
+          if-no-files-found: warn
+          retention-days: 7
