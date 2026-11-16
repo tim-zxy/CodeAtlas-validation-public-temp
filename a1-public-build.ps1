@@ -9,14 +9,14 @@ $SourceRoot = [IO.Path]::GetFullPath($SourceRoot)
 $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
 if (Test-Path -LiteralPath $OutputRoot) { throw 'OUTPUT_ALREADY_EXISTS' }
 if ($OutputRoot -eq $SourceRoot -or $OutputRoot.StartsWith($SourceRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -or $SourceRoot.StartsWith($OutputRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'OUTPUT_SOURCE_OVERLAP' }
-if ((git -C $SourceRoot rev-parse HEAD) -ne 'a1f8fa950d1eea6699ced3ece058f06c53c1c6e1') { throw 'SOURCE_IDENTITY_MISMATCH' }
+if ((git -C $SourceRoot rev-parse HEAD) -ne '96a965b822f75c66230636d47a81eee4a8eeebd9') { throw 'SOURCE_IDENTITY_MISMATCH' }
 $expected = [ordered]@{
   'Cargo.lock' = '72b958d8d35046d3c26c09a4ee1bc7f9249370ecaebf09772d4507fe3cc5d849'
   'Cargo.toml' = 'd55a4aa34260d8f79a14e8624d3b0b1b320e99c3812503c8b53fe92de2eb00f9'
   'rust-toolchain.toml' = 'b5c4a6db877d7ecfa826fbce94d61bdb85b8f173e7a943e6bc3e9441825729ee'
-  'pnpm-lock.yaml' = '2447e32f7376d5b4b716b75de8a76ee96708cee839c02d38db6ac87832c2d3b0'
+  'pnpm-lock.yaml' = '67b68a47fa5e7410424ec9b7e7259cc858b4bbd1f863bfec4d4b98b74943327f'
   'pnpm-workspace.yaml' = '52b3a87784a67dfaa6c254807c2f037e4cafb962ceb753ec7af028fccdb8cf27'
-  'package.json' = '4d8e8b20f13e7725c36b320c942b1a0bd9634f4077927123f7aac0229363fc68'
+  'package.json' = '504f43c05c1e3eb8191f4daa1dee18f90b3026e7d42306b1dae92b8e42bf757b'
 }
 function VerifyLocks {
   foreach ($entry in $expected.GetEnumerator()) {
@@ -51,7 +51,7 @@ $env:CXX_x86_64_pc_windows_msvc = $env:CC_x86_64_pc_windows_msvc
 $toolFiles = [ordered]@{ node=(Get-Command node.exe).Source; powershell=(Get-Command pwsh.exe).Source; tar=(Join-Path $env:SystemRoot 'System32/tar.exe'); cargo=$cargo; rustc=$rustc; cl=$env:CC_x86_64_pc_windows_msvc; linker=$env:CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER; rc=(Get-Command rc.exe).Source }
 $tools = @($toolFiles.GetEnumerator() | ForEach-Object { [ordered]@{role=$_.Key;sha256=Sha $_.Value} })
 $sdkVersion = $env:WindowsSDKVersion.TrimEnd([IO.Path]::DirectorySeparatorChar)
-$receipt = [ordered]@{ sourceCommit='a1f8fa950d1eea6699ced3ece058f06c53c1c6e1';nodeVersion='24.15.0';rustVersion='1.98.1';imageVersion=$env:ImageVersion;vcToolsVersion=$env:VCToolsVersion;sdkVersion=$sdkVersion;tools=$tools;locks=$expected;cargoIncremental=$false;cargoJobs=1;networkIsolation='NOT_CLAIMED';completeOsProvenance='NOT_ESTABLISHED' }
+$receipt = [ordered]@{ sourceCommit='96a965b822f75c66230636d47a81eee4a8eeebd9';nodeVersion='24.15.0';rustVersion='1.98.1';imageVersion=$env:ImageVersion;vcToolsVersion=$env:VCToolsVersion;sdkVersion=$sdkVersion;tools=$tools;locks=$expected;cargoIncremental=$false;cargoJobs=1;networkIsolation='NOT_CLAIMED';completeOsProvenance='NOT_ESTABLISHED' }
 [IO.File]::WriteAllText((Join-Path $OutputRoot 'build-receipt.json'), ($receipt | ConvertTo-Json -Depth 8), [Text.UTF8Encoding]::new($false))
 Push-Location $SourceRoot
 try {

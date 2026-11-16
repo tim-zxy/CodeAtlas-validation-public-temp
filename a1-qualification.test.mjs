@@ -17,12 +17,12 @@ test('new qualification refuses a correctly hashed previous-source seed before c
 });
 
 test('new source and lock pins are exact; workflow has no old source or extra execution modes',async()=>{
- assert.equal(sourceCommit,'a1f8fa950d1eea6699ced3ece058f06c53c1c6e1');
+ assert.equal(sourceCommit,'96a965b822f75c66230636d47a81eee4a8eeebd9');
  const build=await fs.readFile(new URL('./a1-public-build.ps1',import.meta.url),'utf8');
- for(const h of ['2447e32f7376d5b4b716b75de8a76ee96708cee839c02d38db6ac87832c2d3b0',
-  '4d8e8b20f13e7725c36b320c942b1a0bd9634f4077927123f7aac0229363fc68'])assert.ok(build.includes(h));
+ for(const h of ['67b68a47fa5e7410424ec9b7e7259cc858b4bbd1f863bfec4d4b98b74943327f',
+  '504f43c05c1e3eb8191f4daa1dee18f90b3026e7d42306b1dae92b8e42bf757b'])assert.ok(build.includes(h));
  assert.equal(build.split(sourceCommit).length-1,2);
- const workflow=await fs.readFile(new URL('./.github/workflows/public-a1-qualification.yml',import.meta.url),'utf8');
+ const workflow=await fs.readFile(new URL('./.github/workflows/integration-qualification.yml',import.meta.url),'utf8');
  assert.equal(workflow.split('ref: '+sourceCommit).length-1,4);
  assert.ok(!workflow.includes('79da401'));
  assert.ok(!/workflow_run:|push:|pull_request:|schedule:/.test(workflow));
@@ -38,3 +38,5 @@ test('new seed retains public-content refusal',()=>{
   {message:'PUBLIC_CONTENT_REVIEW_FAILED'});
  assertPublicBytes(Buffer.from('fixed public synthetic evidence'));
 });
+
+ test('initial dispatch performs only one seed build and no qualification stage',async()=>{const w=await fs.readFile(new URL('./.github/workflows/public-a1-qualification.yml',import.meta.url),'utf8');assert.equal(w.split('ref: '+sourceCommit).length-1,1);assert.ok(w.includes('timeout-minutes: 20'));assert.ok(w.includes('One Native build only'));assert.ok(!/READ_FULL162|VERIFY90|TRANSPORT154|actual22|PACK/.test(w));assert.ok(!/workflow_run:|push:|pull_request:|schedule:/.test(w));});

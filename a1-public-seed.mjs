@@ -5,7 +5,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
-export const sourceCommit='a1f8fa950d1eea6699ced3ece058f06c53c1c6e1';
+export const sourceCommit='96a965b822f75c66230636d47a81eee4a8eeebd9';
 export const repository='tim-zxy/CodeAtlas-validation-public-temp';
 export const sha=b=>createHash('sha256').update(b).digest('hex');
 export function assertPublicBytes(bytes){
