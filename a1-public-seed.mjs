@@ -1,11 +1,12 @@
 // Build-seed transport only. Never grants qualification, ownership or numeric approval.
 import assert from 'node:assert/strict';
+import {retainedSeed} from './a1-retained-seed.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
-export const sourceCommit='96a965b822f75c66230636d47a81eee4a8eeebd9';
+export const sourceCommit='bb2880f90bb45b510b3a9ebbf4db85b1e8039bda';
 export const repository='tim-zxy/CodeAtlas-validation-public-temp';
 export const sha=b=>createHash('sha256').update(b).digest('hex');
 export function assertPublicBytes(bytes){
@@ -58,13 +59,26 @@ export async function copyLicenseTexts(packages,destination){
  }
  await save(path.join(destination,'index.json'),licenses);
 }
+export async function verifySeedTools(provenance){return tools(provenance);}
+export function assertRetainedNativeReuse(value){
+ assert(value&&typeof value==='object');
+ assert.deepEqual(Object.keys(value).sort(),['schemaVersion','scope','readerSourceCommit','producerSourceCommit','seedProducerCommit','seedArchiveSha256','seedManifestSha256','seedReleaseId','seedAssetId','nativeSha256','nativeBuildReceiptSha256','originalBuildProvenance'].sort());
+ assert.equal(value.schemaVersion,1);assert.equal(value.scope,'RETAINED_NATIVE_INPUT_NOT_REBUILT');
+ assert.equal(value.readerSourceCommit,sourceCommit);assert.equal(value.producerSourceCommit,retainedSeed.sourceCommit);
+ for(const [key,expected]of Object.entries({seedProducerCommit:retainedSeed.producerCommit,seedArchiveSha256:retainedSeed.archiveSha256,seedManifestSha256:retainedSeed.manifestSha256,seedReleaseId:retainedSeed.releaseId,seedAssetId:retainedSeed.assetId,nativeSha256:retainedSeed.nativeSha256}))assert.equal(value[key],expected,'RETAINED_NATIVE_BINDING_CHANGED');
+ assert.equal(value.nativeBuildReceiptSha256,'1e5aff25beba4c53a95119e2907cc21f5c8cd29e0e40686d47aa7f057d4af61d');
+ assert.equal(value.originalBuildProvenance.sourceCommit,retainedSeed.sourceCommit);
+ assert.equal(sha(Buffer.from(JSON.stringify(value.originalBuildProvenance,null,2)+'\n')),'46c9f12e59ac97fa80c229933d6ea844665397b1bd9b0a0007453d4a01bdb760','ORIGINAL_NATIVE_PROVENANCE_CHANGED');
+ return value;
+}
+
 export async function createSeed(source,output){
  assert.equal(process.env.GITHUB_ACTIONS,'true');assert.equal(process.env.GITHUB_REPOSITORY,repository);
  const seed=path.join(output,'seed');await fs.mkdir(seed);await fs.mkdir(path.join(seed,'native'));await fs.mkdir(path.join(seed,'evidence'));await fs.mkdir(path.join(seed,'temp'));
- const provenance=await json(path.join(output,'build-receipt.json'));assert.equal(provenance.sourceCommit,sourceCommit);
+ const reader=await json(path.join(output,'build-receipt.json'));assert.equal(reader.sourceCommit,sourceCommit);assert.equal(reader.buildMode,'READER_ONLY');assert.equal(reader.nativeRebuilt,false);const nativeInput=assertRetainedNativeReuse(await json(path.join(output,'retained-native-reuse.json')));const provenance={...reader,nativeInput};await tools(reader);await tools(nativeInput.originalBuildProvenance);
  const nativeSource='C:/CodeAtlas-P05-D5-R10/native/codeatlas-native-analyzer.exe';const native=await regular(nativeSource);assertPublicBytes(native);
  await fs.copyFile(nativeSource,path.join(seed,'native/codeatlas-native-analyzer.exe'),1);
- const build=await json('C:/CodeAtlas-P05-D5-R10/evidence/native-build.json');assert.equal(build.native.sha256,sha(native));await save(path.join(seed,'evidence/native-build.json'),build);
+ const nativeBuildBytes=await fs.readFile('C:/CodeAtlas-P05-D5-R10/evidence/native-build.json');assert.equal(sha(nativeBuildBytes),nativeInput.nativeBuildReceiptSha256);const build=JSON.parse(nativeBuildBytes);assert.equal(build.native.sha256,sha(native));await save(path.join(seed,'evidence/native-build.json'),build);
  await save(path.join(seed,'evidence/build-provenance.json'),provenance);
  const replay=await imp(source,'packages/runtime/test/helpers/native-refresh-transport-replay.mjs');
  const catalog=await replay.discoverRefreshReplayDependenciesAt({repositoryPath:source,nativeExecutablePath:path.join(seed,'native/codeatlas-native-analyzer.exe'),generatorRevision:'p05-refresh-replay-v4'});
@@ -79,7 +93,7 @@ export async function createSeed(source,output){
 }
 export async function verifySeed(source,seed,expectedManifestSha,producerCommit=process.env.GITHUB_SHA){
  assert(/^[a-f0-9]{64}$/.test(expectedManifestSha));const bytes=await regular(path.join(seed,'seed.json'));assert.equal(sha(bytes),expectedManifestSha);assertPublicBytes(bytes);const manifest=JSON.parse(bytes);assert.equal(manifest.scope,'BUILD_SEED_NOT_QUALIFIED');assert.equal(manifest.repository,repository);assert.equal(manifest.sourceCommit,sourceCommit);assert.equal(manifest.controlCommit,producerCommit,'SEED_PRODUCER_CHANGED');assertSeedInventory(manifest.inventory);assert.deepEqual(await members(seed),manifest.inventory);
- const provenance=await json(path.join(seed,'evidence/build-provenance.json'));await tools(provenance);
+ const provenance=await json(path.join(seed,'evidence/build-provenance.json'));assert.equal(provenance.sourceCommit,sourceCommit);assert.equal(provenance.buildMode,'READER_ONLY');assert.equal(provenance.nativeRebuilt,false);const nativeInput=assertRetainedNativeReuse(provenance.nativeInput);await tools(provenance);await tools(nativeInput.originalBuildProvenance);assert.equal(sha(await fs.readFile(path.join(seed,'evidence/native-build.json'))),nativeInput.nativeBuildReceiptSha256);
  const runtime=await imp(source,'packages/runtime/dist/native-metadata-admission.js');assert.deepEqual(runtime.nativeMetadataEnvironment(),manifest.environment);
  const replay=await imp(source,'packages/runtime/test/helpers/native-refresh-transport-replay.mjs');const actual=await replay.discoverRefreshReplayDependenciesAt({repositoryPath:source,nativeExecutablePath:path.join(seed,'native/codeatlas-native-analyzer.exe'),generatorRevision:'p05-refresh-replay-v4'});assertReaderEqual(await json(path.join(seed,'evidence/reader-catalog.json')),actual);
  const pack=await imp(source,'scripts/helpers/native-refresh-ci-pack.mjs');const layouts=await imp(source,'scripts/helpers/native-refresh-ci-layout.mjs');await pack.verifyRefreshCiNativeBuildAt(await layouts.readRefreshCiPackLayoutAt(seed),source);return manifest;
