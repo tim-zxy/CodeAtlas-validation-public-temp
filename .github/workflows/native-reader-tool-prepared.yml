@@ -1,0 +1,186 @@
+name: Prepared historical Native reader tool preflight
+on:
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: historical-reader-native-tool-preflight
+  cancel-in-progress: false
+jobs:
+  tool-preflight:
+    if: github.repository == 'tim-zxy/CodeAtlas-validation-public-temp' && github.event.repository.private == false && github.run_attempt == 1
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - name: Prepare exact official tools and compare original identities
+        shell: node {0}
+        run: |
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { createHash } = require('node:crypto');
+          const { spawnSync } = require('node:child_process');
+          const expected = {"origin":{"repository":"tim-zxy/CodeAtlas-validation-public-temp","releaseId":448061177,"assetId":757432131,"archiveSha256":"0594622a132cd20f49c7bce9e944affb701450526b07b7f26586f08842911ff6","provenanceMember":"evidence/build-provenance.json","provenanceSha256":"a2171fb04343f12b0a51680f3abd1c9efc0624180eeec2e9350aeadfbccc62e8","readerSourceCommit":"bb2880f90bb45b510b3a9ebbf4db85b1e8039bda","nativeSourceCommit":"96a965b822f75c66230636d47a81eee4a8eeebd9","nativeSha256":"31096901499f4e24378b68956883e3aaa7ecf4bdb8284aa19f8081a8ae5999cf"},"imageVersion":"20261103.298.1","rustVersion":"1.98.1","vcToolsVersion":"14.51.36231","sdkVersion":"10.0.26100.0","tools":[{"role":"node","sha256":"3331e1ffe19874215472217c5e94f5a0c6d8e18c4ac7111d3937aa0ad5e9b4a5"},{"role":"powershell","sha256":"2a6769a3330dc1084d0154bfde7d164ab750ca7f700f313f9d417c1be78b2233"},{"role":"tar","sha256":"a8c4b61db4c2908930be3984d80b4a921f75290c958adc62565da8a455b1230c"},{"role":"cargo","sha256":"c37545ec61d48d31bdefce53280ecab61c4ea54eaace372fac6a0316c6e165d9"},{"role":"rustc","sha256":"ca9988af88b1463f6857fdfe909299fee50a63260b3e5f7dbcb5b4d3318b27bc"},{"role":"cl","sha256":"b0a1818ebae6da7f18230a84e76ce839212584ac4c2ab55b97a0d5268085da57"},{"role":"linker","sha256":"a8c42e25c91ca2453e1110540ac08f0fc12d7539454a11b9af8baeecb469837d"},{"role":"rc","sha256":"9e2ee68da28b3318f50a9f1008d64567a9b402bda384a007a9b71a3f16bd011b"}]};
+          const roles = Object.freeze(['node', 'powershell', 'tar', 'cargo', 'rustc', 'cl', 'linker', 'rc']);
+          class ProbeFault extends Error {
+            constructor(unsettled = false) { super('RESOLUTION_FAILED'); this.unsettled = unsettled; }
+          }
+          function rustupEnv(env, stat) {
+            const home = env.RUSTUP_HOME ?? path.win32.join(env.USERPROFILE ?? '', '.rustup');
+            if (!path.win32.isAbsolute(home) || !stat(home).isDirectory() || !stat(path.win32.join(home, 'settings.toml')).isFile()) throw new ProbeFault();
+            const child = { ...env, RUSTUP_AUTO_INSTALL: '0' };
+            delete child.RUSTUP_TRACE_DIR;
+            return child;
+          }
+          function invoke(file, args, timeout) {
+            const r = spawnSync(file, args, { encoding: 'utf8', windowsHide: true, timeout, maxBuffer: 10000, stdio: ['ignore', 'pipe', 'pipe'], env: file === 'rustup' ? rustupEnv(process.env, fs.statSync) : process.env });
+            if (r.error || r.status !== 0) throw new ProbeFault(r.error?.code === 'ETIMEDOUT' || (r.pid > 0 && r.status === null));
+            const lines = String(r.stdout).trim().split(/\r?\n/);
+            if (!lines[0]) throw new ProbeFault();
+            return lines;
+          }
+          function resolveTool(e, role, env, call, memo) {
+            if (role === 'tar') {
+              if (!path.win32.isAbsolute(env.SystemRoot ?? '')) throw new ProbeFault();
+              return path.win32.join(env.SystemRoot, 'System32/tar.exe');
+            }
+            if (['cl', 'linker', 'rc'].includes(role)) {
+              if (!memo.compiler) {
+                const pf = env['ProgramFiles(x86)'];
+                if (!path.win32.isAbsolute(pf ?? '')) throw new ProbeFault();
+                const lines = call(path.win32.join(pf, 'Microsoft Visual Studio/Installer/vswhere.exe'), ['-latest', '-products', '*', '-requires', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64', '-property', 'installationPath'], 15000);
+                if (lines.length !== 1 || !path.win32.isAbsolute(lines[0])) throw new ProbeFault();
+                const bin = path.win32.join(lines[0], 'VC/Tools/MSVC', e.vcToolsVersion, 'bin/Hostx64/x64');
+                memo.compiler = { cl: path.win32.join(bin, 'cl.exe'), linker: path.win32.join(bin, 'link.exe'), rc: path.win32.join(pf, 'Windows Kits/10/bin', e.sdkVersion, 'x64/rc.exe') };
+              }
+              return memo.compiler[role];
+            }
+            if (role === 'cargo' || role === 'rustc') return call('rustup', ['which', '--toolchain', e.rustVersion, role], 10000)[0];
+            if (role === 'node' || role === 'powershell') return call('where.exe', [role === 'node' ? 'node.exe' : 'pwsh.exe'], 10000)[0];
+            throw new ProbeFault();
+          }
+          function inspect(e, env, call, hash) {
+            const tools = [], memo = {};
+            let unsettled = false;
+            for (const role of roles) {
+              if (unsettled) { tools.push({ role, status: 'NOT_CHECKED', sha256: null, matches: false }); continue; }
+              let file;
+              try { file = resolveTool(e, role, env, call, memo); }
+              catch (error) {
+                unsettled = error instanceof ProbeFault && error.unsettled;
+                tools.push({ role, status: 'RESOLUTION_FAILED', sha256: null, matches: false }); continue;
+              }
+              try {
+                const sha256 = hash(file);
+                if (!/^[a-f0-9]{64}$/.test(sha256)) throw Error();
+                tools.push({ role, status: 'HASHED', sha256, matches: sha256 === e.tools.find((x) => x.role === role).sha256 });
+              } catch { tools.push({ role, status: 'HASH_FAILED', sha256: null, matches: false }); }
+            }
+            const observed = /^\d{8}\.\d+\.\d+$/.test(env.ImageVersion ?? '') ? env.ImageVersion : null;
+            const image = { expected: e.imageVersion, observed, matches: observed === e.imageVersion };
+            return {
+              schemaVersion: 1, scope: 'HISTORICAL_READER_NATIVE_TOOL_SCREEN_ONLY', origin: e.origin,
+              image, tools, resolverCleanup: unsettled ? 'UNKNOWN' : 'SETTLED',
+              allMatch: !unsettled && image.matches && tools.every((x) => x.matches),
+              eligibleForNativeReuse: false, qualification: 'NOT_ATTEMPTED', nativeExecuted: false,
+            };
+          }
+          async function main() {
+            let report, owned;
+            const preparation = { node: 'NOT_ATTEMPTED', rust: 'NOT_ATTEMPTED' };
+            try {
+              if (process.argv.length !== 2 || process.env.ImageVersion !== expected.imageVersion) throw Error('IMAGE_OR_ARGUMENTS');
+              const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+              // Refuse unrelated tool drift before preparing anything.
+              const initial = inspect(expected, process.env, invoke, hash);
+              if (initial.resolverCleanup !== 'SETTLED') throw Error('RESOLVER_UNSETTLED');
+              if (initial.tools.filter(x => !['node','cargo','rustc'].includes(x.role)).some(x => !x.matches)) throw Error('OTHER_TOOL_MISMATCH');
+              owned = fs.mkdtempSync(path.join(process.env.RUNNER_TEMP, 'reader-tools-'));
+              const selectedNode = await prepareNode(expected, process.env, owned, hash, run, download);
+              preparation.node = selectedNode.mode;
+              process.env.PATH = path.dirname(selectedNode.file) + path.delimiter + process.env.PATH;
+              preparation.rust = prepareRust(expected, process.env, run, hash);
+              report = inspect(expected, process.env, invoke, hash);
+            } catch (error) {
+              report = { schemaVersion: 1, scope: 'HISTORICAL_READER_NATIVE_TOOL_SCREEN_ONLY', status: 'PREPARATION_FAILED',
+                reason: reasons.has(error.message) ? error.message : 'UNCLASSIFIED_FAILURE', allMatch: false,
+                eligibleForNativeReuse: false, qualification: 'NOT_ATTEMPTED', nativeExecuted: false };
+            } finally {
+              const cleanup = cleanupOwned(owned, report);
+              report.preparation = preparation;
+              report.temporaryNodeCleanup = cleanup;
+              report.rustToolchainLifetime = 'EPHEMERAL_RUNNER_ONLY';
+              if (cleanup === 'UNKNOWN') report.allMatch = false;
+            }
+            process.exitCode = report.allMatch ? 0 : 1;
+            process.stdout.write(JSON.stringify(report) + '\n');
+          }
+          function cleanupOwned(owned, report, io = fs) {
+            if (!owned) return 'NOT_CREATED';
+            if (report.reason === 'TOOL_COMMAND_UNSETTLED' || report.resolverCleanup === 'UNKNOWN') return 'UNKNOWN';
+            try {
+              io.rmSync(owned, { recursive: true, force: false });
+              return io.existsSync(owned) ? 'UNKNOWN' : 'REMOVED';
+            } catch { return 'UNKNOWN'; }
+          }
+          const reasons = new Set(['IMAGE_OR_ARGUMENTS','RESOLVER_UNSETTLED','OTHER_TOOL_MISMATCH','NODE_HASH_MISMATCH',
+            'RUST_HASH_MISMATCH','TOOL_COMMAND_FAILED','TOOL_COMMAND_UNSETTLED','DOWNLOAD_FAILED','DOWNLOAD_LIMIT','ARCHIVE_FAILED']);
+          function run(file, args, timeout, env = process.env) {
+            const child = spawnSync(file, args, { encoding: 'utf8', windowsHide: true, timeout, maxBuffer: 65536,
+              stdio: ['ignore','pipe','pipe'], env });
+            if (child.error || child.status !== 0) throw Error(child.error || child.status === null ? 'TOOL_COMMAND_UNSETTLED' : 'TOOL_COMMAND_FAILED');
+            return String(child.stdout).trim();
+          }
+          function download(url, target) {
+            // One exact official URL, no redirect, no retry, bounded bytes/time, exclusive target.
+            return new Promise((resolve, reject) => {
+              const https = require('node:https');
+              let count = 0, done = false;
+              const timer = setTimeout(() => { request.destroy(); finish(Error('DOWNLOAD_FAILED')); }, 120000);
+              const chunks = [];
+              const finish = (error) => { if (done) return; done = true; clearTimeout(timer); if (error) reject(error); else resolve(); };
+              const request = https.get(url, { timeout: 30000 }, response => {
+                if (response.statusCode !== 200) { response.resume(); finish(Error('DOWNLOAD_FAILED')); return; }
+                response.on('data', chunk => {
+                  count += chunk.length;
+                  if (count > 128 * 1024 * 1024) { request.destroy(); finish(Error('DOWNLOAD_LIMIT')); } else chunks.push(chunk);
+                });
+                response.on('error', () => finish(Error('DOWNLOAD_FAILED')));
+                response.on('end', () => { if (!done) { try { fs.writeFileSync(target, Buffer.concat(chunks), { flag: 'wx' }); finish(); } catch { finish(Error('DOWNLOAD_FAILED')); } } });
+              });
+              request.on('timeout', () => { request.destroy(); finish(Error('DOWNLOAD_FAILED')); });
+              request.on('error', () => finish(Error('DOWNLOAD_FAILED')));
+            });
+          }
+          async function prepareNode(e, env, owned, hash, call, fetchArchive) {
+            const expectedHash = e.tools.find(x => x.role === 'node').sha256;
+            const current = call('where.exe', ['node.exe'], 10000, env).split(/\r?\n/)[0];
+            if (path.win32.isAbsolute(current) && hash(current) === expectedHash) return { file: current, mode: 'EXISTING_SELECTED_NODE' };
+            const cache = env.RUNNER_TOOL_CACHE;
+            const candidate = cache && path.join(cache, 'node', '24.15.0', 'x64', 'node.exe');
+            if (candidate && fs.existsSync(candidate)) {
+              if (hash(candidate) !== expectedHash) throw Error('NODE_HASH_MISMATCH');
+              return { file: candidate, mode: 'EXISTING_EXACT_CACHE' };
+            }
+            const archive = path.join(owned, 'node.zip'), file = path.join(owned, 'node.exe');
+            await fetchArchive('https://nodejs.org/dist/v24.15.0/node-v24.15.0-win-x64.zip', archive);
+            // Extract ONLY the exact executable entry, not an archive-supplied path or DLL.
+            const script = "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead($env:READER_NODE_ZIP); try { $e=@($z.Entries | Where-Object { $_.FullName -ceq 'node-v24.15.0-win-x64/node.exe' }); if($e.Count -ne 1 -or $e[0].Length -gt 134217728){throw 'ARCHIVE_FAILED'}; $s=$e[0].Open(); $o=[IO.File]::Open($env:READER_NODE_FILE,[IO.FileMode]::CreateNew); try{$s.CopyTo($o)}finally{$o.Dispose();$s.Dispose()} }finally{$z.Dispose()}";
+            call('pwsh.exe', ['-NoLogo','-NoProfile','-NonInteractive','-Command',script], 30000,
+              { ...env, READER_NODE_ZIP: archive, READER_NODE_FILE: file });
+            if (hash(file) !== expectedHash) throw Error('NODE_HASH_MISMATCH');
+            return { file, mode: 'OFFICIAL_EXACT_DOWNLOAD' };
+          }
+          function prepareRust(e, env, call, hash) {
+            const childEnv = { ...env, RUSTUP_AUTO_INSTALL: '0', RUSTUP_DIST_SERVER: 'https://static.rust-lang.org',
+              RUSTUP_UPDATE_ROOT: 'https://static.rust-lang.org/rustup' };
+            delete childEnv.RUSTUP_TRACE_DIR;
+            const exact = e.rustVersion + '-x86_64-pc-windows-msvc';
+            const installed = call('rustup', ['toolchain','list'], 10000, childEnv).split(/\r?\n/).some(x => x.split(/\s/)[0] === exact);
+            if (!installed) call('rustup', ['toolchain','install',e.rustVersion,'--profile','minimal','--no-self-update'], 240000, childEnv);
+            for (const role of ['cargo','rustc']) {
+              const file = call('rustup', ['which','--toolchain',e.rustVersion,role], 10000, childEnv);
+              if (!path.win32.isAbsolute(file) || hash(file) !== e.tools.find(x => x.role === role).sha256) throw Error('RUST_HASH_MISMATCH');
+            }
+            return installed ? 'EXISTING_EXACT_TOOLCHAIN' : 'OFFICIAL_EXACT_PREPARATION';
+          }
+          module.exports = { expected, roles, ProbeFault, resolveTool, inspect, rustupEnv, prepareNode, prepareRust, cleanupOwned };
+          if (require.main === module) main();
